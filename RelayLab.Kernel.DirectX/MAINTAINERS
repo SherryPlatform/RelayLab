@@ -66,3 +66,25 @@ Maintainers List
 .. note:: When reading this list, please look for the most precise areas
           first. When adding to this list, please keep the entries in
           alphabetical order.
+
+Hyper-V vGPU DRIVER
+M:	Iouri Tarassov <iourit@microsoft.com>
+L:	linux-hyperv@vger.kernel.org
+S:	Supported
+F:	Kconfig
+F:	Makefile
+F:	d3dkmthk.h
+F:	dxgadapter.c
+F:	dxgkrnl.h
+F:	dxgmodule.c
+F:	dxgprocess.c
+F:	dxgsyncfile.c
+F:	dxgsyncfile.h
+F:	dxgvmbus.c
+F:	dxgvmbus.h
+F:	hmgr.c
+F:	hmgr.h
+F:	hyperv.h
+F:	ioctl.c
+F:	misc.c
+F:	misc.h
