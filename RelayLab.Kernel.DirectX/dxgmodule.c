@@ -175,7 +175,11 @@ void signal_host_cpu_event(struct dxghostevent *eventhdr)
 	}
 	if (event->cpu_event) {
 		DXG_TRACE("signal cpu event");
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+		eventfd_signal(event->cpu_event);
+#else
 		eventfd_signal(event->cpu_event, 1);
+#endif
 		if (event->destroy_after_signal)
 			eventfd_ctx_put(event->cpu_event);
 	} else {
