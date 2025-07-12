@@ -7,7 +7,7 @@ Work In Progress
 
 ## Why named RelayLab?
 
-In 2018, as a college student in the sophomore year, had selected a free
+In 2018, as a college student in the sophomore year, I had selected a free
 elective course called ROS Robotics Efficient Programming taught by
 [Dr. Relay Zhang](https://blog.csdn.net/zhangrelay). I was very impressed
 and benefited from this course because he will show the industrial robotics
@@ -55,8 +55,8 @@ Because I think the project name of this idea should be started with R because
 the robotics is started with R. I think maybe I can called this project RelayLab
 because I hope this implementation can help Dr. Relay Zhang improve his course.
 
-I also put this name to Large Language Model called DeepSeek, it has came out
-many other ideas for this name. So, I think this project name is OK to use.
+I also asked this name to a large language model called DeepSeek, and it came up
+with many other ideas for this name. So, I think this project name is OK to use.
 
 ## Documents
 
