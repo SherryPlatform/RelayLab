@@ -15,7 +15,7 @@ scenarios at every course beginning, then start the live C++ and Python coding
 demonstration in the Ubuntu environment with ROS Kinetic Kame installed. It's
 too hardcore for most students because they are used to deal with the easy
 courses, only the step of installing the Ubuntu environment with ROS Kinetic
-Kame, they will use over a half semester. I think it's waste of time for
+Kame, they will use over half a semester. I think it's waste of time for
 stucking at installing Linux distribution instead of touching the detail of
 robotics with ROS. I had no idea to improve that to make teacher confident for
 his course and his life, but he was very happy to meet me, and suggested me to
