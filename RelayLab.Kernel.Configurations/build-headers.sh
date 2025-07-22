@@ -99,7 +99,7 @@ make \
     -C "$KERNEL_SOURCE" \
     KCONFIG_CONFIG="$KERNEL_CONFIG" \
     O="$HEADERS_OUTPUT" \
-    HOSTLDFLAGS="-static -lzstd -lz" \
+    HOSTLDFLAGS="-s" \
     modules_prepare
 
 # Remove immediate files that are not needed
@@ -117,15 +117,28 @@ rm "$HEADERS_OUTPUT/.missing-syscalls.d"
 cp -r \
     "$KERNEL_SOURCE/include" \
     "$KERNEL_SOURCE/scripts" \
-    "$KERNEL_SOURCE/tools" \
     "$KERNEL_SOURCE/Makefile" \
     "$HEADERS_OUTPUT"
 cp -r \
-    "$KERNEL_SOURCE/arch/$KERNEL_ARCH" \
-    "$HEADERS_OUTPUT/arch"
+    "$KERNEL_SOURCE/arch/$KERNEL_ARCH/include" \
+    "$HEADERS_OUTPUT/arch/$KERNEL_ARCH"
+find "$KERNEL_SOURCE/arch/$KERNEL_ARCH" \
+    -maxdepth 1 \
+    -type f \
+    \( -name "Kbuild*" -o -name "Kconfig*" -o -name "Makefile*" \) \
+    -exec cp {} "$HEADERS_OUTPUT/arch/$KERNEL_ARCH/" \;
+cp -r \
+    "$KERNEL_SOURCE/tools/include" \
+    "$HEADERS_OUTPUT/tools"
+mkdir -p "$HEADERS_OUTPUT/tools/arch/$KERNEL_ARCH"
+cp -r \
+    "$KERNEL_SOURCE/tools/arch/$KERNEL_ARCH/include" \
+    "$HEADERS_OUTPUT/tools/arch/$KERNEL_ARCH"
 cp \
     "$BUILD_OUTPUT/Module.symvers" \
     "$HEADERS_OUTPUT"
+
+# Print success message
 
 echo "Kernel headers for external modules have been prepared successfully."
 echo "Headers are located at: $HEADERS_OUTPUT"
