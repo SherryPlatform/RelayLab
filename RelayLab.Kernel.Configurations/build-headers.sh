@@ -116,7 +116,6 @@ rm "$HEADERS_OUTPUT/.missing-syscalls.d"
 
 cp -r \
     "$KERNEL_SOURCE/include" \
-    "$KERNEL_SOURCE/scripts" \
     "$KERNEL_SOURCE/Makefile" \
     "$HEADERS_OUTPUT"
 cp -r \
@@ -127,6 +126,12 @@ find "$KERNEL_SOURCE/arch/$KERNEL_ARCH" \
     -type f \
     \( -name "Kbuild*" -o -name "Kconfig*" -o -name "Makefile*" \) \
     -exec cp {} "$HEADERS_OUTPUT/arch/$KERNEL_ARCH/" \;
+find "$KERNEL_SOURCE/scripts" \
+    -maxdepth 1 \
+    -type f \
+    -not \( -name "*.c" -o -name "*.h" -o -name "*.rs" \) \
+    -exec cp {} "$HEADERS_OUTPUT/scripts/" \;
+cp "$KERNEL_SOURCE/scripts/module-common.c" "$HEADERS_OUTPUT/scripts/"
 cp -r \
     "$KERNEL_SOURCE/tools/include" \
     "$HEADERS_OUTPUT/tools"
