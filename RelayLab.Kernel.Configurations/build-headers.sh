@@ -114,35 +114,28 @@ rm "$HEADERS_OUTPUT/.missing-syscalls.d"
 
 # Copy the kernel headers to the output directory
 
-cp -r \
-    "$KERNEL_SOURCE/include" \
-    "$KERNEL_SOURCE/Makefile" \
-    "$HEADERS_OUTPUT"
-cp -r \
-    "$KERNEL_SOURCE/arch/$KERNEL_ARCH/include" \
-    "$HEADERS_OUTPUT/arch/$KERNEL_ARCH"
+cd "$KERNEL_SOURCE" && find \
+    include \
+    Makefile \
+    "arch/$KERNEL_ARCH/include" \
+    "tools/include" \
+    "tools/arch/$KERNEL_ARCH/include" \
+    -type f | cpio -pdm "$HEADERS_OUTPUT" && cd - > /dev/null
 find "$KERNEL_SOURCE/arch/$KERNEL_ARCH" \
     -maxdepth 1 \
     -type f \
     \( -name "Kbuild*" -o -name "Kconfig*" -o -name "Makefile*" \) \
     -exec cp {} "$HEADERS_OUTPUT/arch/$KERNEL_ARCH/" \;
-find "$KERNEL_SOURCE/scripts" \
+cd "$KERNEL_SOURCE" && find scripts \
     -type f \
     -not \( -name "*.c" -o -name "*.h" -o -name "*.rs" -o -name "Makefile*" \) \
-    -exec cp {} "$HEADERS_OUTPUT/scripts/" \;
+    | cpio -pdm "$HEADERS_OUTPUT" && cd - > /dev/null
 find "$KERNEL_SOURCE/scripts" \
     -maxdepth 1 \
     -type f \
     -name "Makefile*" \
     -exec cp {} "$HEADERS_OUTPUT/scripts/" \;
 cp "$KERNEL_SOURCE/scripts/module-common.c" "$HEADERS_OUTPUT/scripts/"
-cp -r \
-    "$KERNEL_SOURCE/tools/include" \
-    "$HEADERS_OUTPUT/tools"
-mkdir -p "$HEADERS_OUTPUT/tools/arch/$KERNEL_ARCH"
-cp -r \
-    "$KERNEL_SOURCE/tools/arch/$KERNEL_ARCH/include" \
-    "$HEADERS_OUTPUT/tools/arch/$KERNEL_ARCH"
 cp \
     "$BUILD_OUTPUT/Module.symvers" \
     "$HEADERS_OUTPUT"
