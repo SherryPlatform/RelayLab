@@ -127,9 +127,13 @@ find "$KERNEL_SOURCE/arch/$KERNEL_ARCH" \
     \( -name "Kbuild*" -o -name "Kconfig*" -o -name "Makefile*" \) \
     -exec cp {} "$HEADERS_OUTPUT/arch/$KERNEL_ARCH/" \;
 find "$KERNEL_SOURCE/scripts" \
+    -type f \
+    -not \( -name "*.c" -o -name "*.h" -o -name "*.rs" -o -name "Makefile*" \) \
+    -exec cp {} "$HEADERS_OUTPUT/scripts/" \;
+find "$KERNEL_SOURCE/scripts" \
     -maxdepth 1 \
     -type f \
-    -not \( -name "*.c" -o -name "*.h" -o -name "*.rs" \) \
+    -name "Makefile*" \
     -exec cp {} "$HEADERS_OUTPUT/scripts/" \;
 cp "$KERNEL_SOURCE/scripts/module-common.c" "$HEADERS_OUTPUT/scripts/"
 cp -r \
