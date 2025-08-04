@@ -87,4 +87,7 @@ CONFIG_MODULE_SIG_KEY=""
 # CONFIG_BLK_DEV_NVME is not set
 # CONFIG_NVME_TARGET is not set
 CONFIG_PACKET=y
+# CONFIG_HWMON is not set
+# CONFIG_MEMORY is not set
+# CONFIG_WATCHDOG is not set
 ```
