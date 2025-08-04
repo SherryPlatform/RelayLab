@@ -1,3 +1,90 @@
 # Configuration Change History of config-x64-RelayLab.NanaBox-v2
 
-- Based on https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.22/main/x86_64/linux-virt-6.12.40-r0.apk.
+Based on https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.22/main/x86_64/linux-virt-6.12.40-r0.apk.
+
+With the following options:
+
+```
+CONFIG_LOCALVERSION="-RelayLab.Kernel.NanaBox"
+# CONFIG_MODULE_COMPRESS is not set
+# CONFIG_XEN is not set
+# CONFIG_KVM_GUEST is not set
+# CONFIG_ARCH_CPUIDLE_HALTPOLL is not set
+# CONFIG_PVH is not set
+# CONFIG_PARAVIRT_TIME_ACCOUNTING is not set
+# CONFIG_ETHERNET is not set
+# CONFIG_PHYLIB is not set
+# CONFIG_MDIO_DEVICE is not set
+# CONFIG_SOUND is not set
+# CONFIG_FB is not set
+# CONFIG_PARTITION_ADVANCED is not set
+# CONFIG_VBOXGUEST is not set
+# CONFIG_NITRO_ENCLAVES is not set
+# CONFIG_EFI_SECRET is not set
+# CONFIG_VIRTIO_MENU is not set
+# CONFIG_VDPA is not set
+# CONFIG_DRM_VMWGFX is not set
+# CONFIG_DRM_QXL is not set
+# CONFIG_DRM_BOCHS is not set
+# CONFIG_DRM_CIRRUS_QEMU is not set
+# CONFIG_DRM_SIMPLEDRM is not set
+# CONFIG_DRM_VBOXVIDEO is not set
+# CONFIG_VIRTIO_CONSOLE is not set
+# CONFIG_I2C_PIIX4 is not set
+# CONFIG_I2C_VIRTIO is not set
+# CONFIG_RPMSG_VIRTIO is not set
+# CONFIG_VIRTIO_FS is not set
+# CONFIG_INTEL_MEI is not set
+# CONFIG_VMWARE_VMCI is not set
+# CONFIG_PVPANIC is not set
+# CONFIG_PTP_1588_CLOCK_VMW is not set
+# CONFIG_ATA is not set
+# CONFIG_VMWARE_PVSCSI is not set
+# CONFIG_VMXNET3 is not set
+# CONFIG_INTEL_IOATDMA is not set
+# CONFIG_QCOM_HIDMA is not set
+# CONFIG_HID_CHERRY is not set
+# CONFIG_I2C_HID is not set
+# CONFIG_USB_SUPPORT is not set
+# CONFIG_EXT2_FS is not set
+# CONFIG_EXT3_FS is not set
+# CONFIG_NTFS_FS is not set
+CONFIG_VSOCKETS=y
+CONFIG_HYPERV_VSOCKETS=y
+CONFIG_PCI_HYPERV=y
+CONFIG_PCI_HYPERV_INTERFACE=y
+CONFIG_SCSI_FC_ATTRS=y
+CONFIG_HYPERV_STORAGE=y
+CONFIG_DRM=y
+CONFIG_DRM_HYPERV=y
+CONFIG_HID=y
+CONFIG_HID_HYPERV_MOUSE=y
+CONFIG_HYPERV_UTILS=y
+CONFIG_HYPERV_BALLOON=y
+CONFIG_UIO=y
+CONFIG_UIO_HV_GENERIC=y
+CONFIG_BINFMT_MISC=y
+CONFIG_NET_9P=y
+CONFIG_NET_9P_FD=y
+# CONFIG_FW_CFG_SYSFS is not set
+CONFIG_BLK_DEV_SD=y
+CONFIG_INPUT_MOUSEDEV=y
+CONFIG_INPUT_EVDEV=y
+# CONFIG_INPUT_MOUSE is not set
+# CONFIG_SERIO_PCIPS2 is not set
+CONFIG_HID_GENERIC=y
+CONFIG_AMD_IOMMU=y
+CONFIG_EXT4_FS=y
+CONFIG_AUTOFS_FS=y
+CONFIG_NETFS_SUPPORT=y
+CONFIG_MSDOS_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_9P_FS=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_ASCII=y
+CONFIG_NLS_UTF8=y
+CONFIG_MODULE_SIG_KEY=""
+# CONFIG_BLK_DEV_NVME is not set
+# CONFIG_NVME_TARGET is not set
+CONFIG_PACKET=y
+```
