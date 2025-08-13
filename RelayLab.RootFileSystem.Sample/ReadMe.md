@@ -22,7 +22,7 @@ Here are some configuration this example used:
   - Username: relaylab
   - Password: rl
 
-## Stage 0
+## Stage 0 Configuration
 
 ### Open local terminal
 
@@ -119,3 +119,55 @@ before removing the generic kernel.
 Reboot the virtual machine for applying the newly installed kernel.
 
 > sudo reboot
+
+Then you should choose to the Ubuntu Azure Kernel in the GRUB.
+
+## Stage 1 Configuration
+
+### Switch to SSH connection
+
+Open Windows Terminal in the host OS, then connect the target virtual machine
+with SSH. Here is the example.
+
+> ssh relaylab@RelayLab
+
+### Remove generic kernel
+
+```
+sudo apt purge linux-firmware linux-*-generic
+sudo apt autopurge
+```
+
+### Install essential tools
+
+> sudo apt install --no-install-recommends --no-install-suggests htop git neofetch build-essential bleachbit
+
+### Update packages
+
+```
+sudo apt update
+sudo apt upgrade
+```
+
+### Cleanup caches
+
+Use BleachBit as root and standard user to do that in you virtual machine
+window. After that, switch to your SSH window.
+
+### Zero the free space
+
+It's necessary for shrink the virtual hard disk.
+
+```
+dd if=/dev/zero of=zeroedspace bs=1M
+sync
+rm zeroedspace
+```
+
+### Poweroff virtual machine
+
+> sudo poweroff
+
+### Shrink virtual hard disk
+
+You can use NanaBox or PowerShell to achieve this goal.
