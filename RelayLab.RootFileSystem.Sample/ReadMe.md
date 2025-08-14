@@ -2,11 +2,9 @@
 
 The typical deployment root file system sample for RelayLab.
 
-**Work In Progress**
-
 ## Install Xubuntu 24.04 Minimal
 
-First, create a virtual machine with 32 GB of virtual hard disk first.
+First, create a virtual machine with 20 GB of virtual hard disk first.
 
 Then, install Xubuntu 24.04 Minimal for making lightweight root file system,
 this example uses xubuntu-24.04.3-minimal-amd64.iso.
@@ -14,7 +12,7 @@ this example uses xubuntu-24.04.3-minimal-amd64.iso.
 Here are some configuration this example used:
 
 - Partition Table
-  - ESP, /boot/efi, 100 MB
+  - ESP, /boot/efi, 104 MB (will be 100 MiB)
   - EXT4, /, remaining space
 - Login Details
   - Name: Relay Lab
@@ -106,6 +104,58 @@ Pin-Priority: 1000
 sudo apt update
 sudo apt install --no-install-recommends --no-install-suggests firefox
 ```
+### Install essential tools
+
+> sudo apt install --no-install-recommends --no-install-suggests htop git neofetch build-essential bleachbit curl gnupg2
+
+### Stop Desktop Environment
+
+> sudo init 3
+
+### Fix X.Org issue when GPU-PV is enabled
+
+```
+echo '
+Section "Device"
+    Identifier "Display 0"
+    Driver "fbdev"
+EndSection
+' | sudo tee /etc/X11/xorg.conf.d/10-vmbus-synthvid.conf
+```
+
+## Remove unnecessary X.Org drivers
+
+```
+sudo apt purge xserver-xorg-video-all
+sudo apt autopurge
+sudo apt install --no-install-recommends --no-install-suggests xserver-xorg-video-fbdev
+```
+
+### Start Desktop Environment
+
+> sudo init 5
+
+### Install ROS2
+
+```
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu noble main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update
+sudo apt install --no-install-recommends --no-install-suggests ros-dev-tools ros-jazzy-desktop
+```
+
+## Install Webots
+
+```
+sudo curl -sSL https://cyberbotics.com/Cyberbotics.asc -o /etc/apt/keyrings/Cyberbotics.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/Cyberbotics.asc] https://cyberbotics.com/debian binary-amd64/" | sudo tee /etc/apt/sources.list.d/Cyberbotics.list > /dev/null
+sudo apt update
+sudo apt install --no-install-recommends --no-install-suggests webots ros-jazzy-webots-ros2
+```
+
+### Update packages
+
+> sudo apt upgrade
 
 ### Install Ubuntu Azure Kernel
 
@@ -114,39 +164,11 @@ before removing the generic kernel.
 
 > sudo apt install --no-install-recommends --no-install-suggests linux-azure
 
-### Reboot virtual machine
-
-Reboot the virtual machine for applying the newly installed kernel.
-
-> sudo reboot
-
-Then you should choose to the Ubuntu Azure Kernel in the GRUB.
-
-## Stage 1 Configuration
-
-### Switch to SSH connection
-
-Open Windows Terminal in the host OS, then connect the target virtual machine
-with SSH. Here is the example.
-
-> ssh relaylab@RelayLab
-
 ### Remove generic kernel
 
 ```
 sudo apt purge linux-firmware linux-*-generic
 sudo apt autopurge
-```
-
-### Install essential tools
-
-> sudo apt install --no-install-recommends --no-install-suggests htop git neofetch build-essential bleachbit
-
-### Update packages
-
-```
-sudo apt update
-sudo apt upgrade
 ```
 
 ### Cleanup caches
@@ -172,14 +194,7 @@ rm zeroedspace
 
 You can use NanaBox or PowerShell to achieve this goal.
 
-## Stage 2 Configuration
-
-### Switch to SSH connection
-
-Open Windows Terminal in the host OS, then connect the target virtual machine
-with SSH. Here is the example.
-
-> ssh relaylab@RelayLab
+## Work In Progress Configuration Snippets
 
 ### Prepare RelayLab Workspace
 
@@ -214,49 +229,11 @@ rm -rf linux-stable-output
 rm -rf linux-6.12.41
 ```
 
-### Reboot virtual machine
-
-Reboot the virtual machine for applying the newly installed kernel.
-
-> sudo reboot
-
-## Stage 3 Configuration
-
-### Switch to SSH connection
-
-Open Windows Terminal in the host OS, then connect the target virtual machine
-with SSH. Here is the example.
-
-> ssh relaylab@RelayLab
-
 ## Remove Ubuntu Azure Kernel
 
 ```
 sudo apt purge linux-*azure*
 sudo apt autopurge
-```
-
-### Fix X.Org issue when GPU-PV is enabled
-
-```
-sudo init 3
-echo '
-Section "Device"
-    Identifier "Display 0"
-    Driver "fbdev"
-EndSection
-' | sudo tee /etc/X11/xorg.conf.d/10-vmbus-synthvid.conf
-sudo init 5
-```
-
-## Remove unnecessary X.Org drivers
-
-```
-sudo init 3
-sudo apt purge xserver-xorg-video-all
-sudo apt autopurge
-sudo apt install xserver-xorg-video-fbdev
-sudo init 5
 ```
 
 ### Disable swap temporarily
@@ -269,53 +246,6 @@ For smaller image size, we need to disable swap temporarily.
   > sudo nano /etc/fstab
 - Remove swap.img
   > sudo rm /swap.img
-
-### Cleanup caches
-
-Use BleachBit as root and standard user to do that in your virtual machine
-window. After that, switch to your SSH window.
-
-### Zero the free space
-
-It's necessary for shrink the virtual hard disk.
-
-```
-dd if=/dev/zero of=zeroedspace bs=1M
-sync
-rm zeroedspace
-```
-
-### Poweroff virtual machine
-
-> sudo poweroff
-
-### Shrink virtual hard disk
-
-You can use NanaBox or PowerShell to achieve this goal.
-
-## Stage 4 Configuration
-
-### Switch to SSH connection
-
-Open Windows Terminal in the host OS, then connect the target virtual machine
-with SSH. Here is the example.
-
-> ssh relaylab@RelayLab
-
-### Install ROS2 and Webots
-
-```
-sudo apt update
-sudo apt install curl gnupg2
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu noble main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-sudo apt update
-sudo apt install ros-dev-tools ros-jazzy-desktop
-sudo curl -sSL https://cyberbotics.com/Cyberbotics.asc -o /etc/apt/keyrings/Cyberbotics.asc
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/Cyberbotics.asc] https://cyberbotics.com/debian binary-amd64/" | sudo tee /etc/apt/sources.list.d/Cyberbotics.list > /dev/null
-sudo apt update
-sudo apt install webots ros-jazzy-webots-ros2
-```
 
 ### Compile Custom Mesa3D
 
@@ -333,26 +263,3 @@ sudo ldconfig
 sudo apt install mesa-utils
 rm -rf mesa
 ```
-
-### Cleanup caches
-
-Use BleachBit as root and standard user to do that in your virtual machine
-window. After that, switch to your SSH window.
-
-### Zero the free space
-
-It's necessary for shrink the virtual hard disk.
-
-```
-dd if=/dev/zero of=zeroedspace bs=1M
-sync
-rm zeroedspace
-```
-
-### Poweroff virtual machine
-
-> sudo poweroff
-
-### Shrink virtual hard disk
-
-You can use NanaBox or PowerShell to achieve this goal.
