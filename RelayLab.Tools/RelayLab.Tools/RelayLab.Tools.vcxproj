@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Sdk="Mile.Project.Configurations" Version="1.0.1622" Project="Mile.Project.Platform.x64.props" />
+  <Import Sdk="Mile.Project.Configurations" Version="1.0.1622" Project="Mile.Project.Platform.ARM64.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E5E2C05A-F64D-4BE3-A332-ACE688F9E33A}</ProjectGuid>
+    <Keyword>Linux</Keyword>
+    <RootNamespace>RelayLab.Tools</RootNamespace>
+    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
+    <ApplicationType>Linux</ApplicationType>
+    <ApplicationTypeRevision>1.0</ApplicationTypeRevision>
+    <TargetLinuxPlatform>Generic</TargetLinuxPlatform>
+    <LinuxProjectType>{D51BCBC9-82E9-4017-911E-C93873C4EA2B}</LinuxProjectType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <RemoteOutRelDir>Output/Binaries/$(Configuration)/$(Platform)</RemoteOutRelDir>
+    <RemoteIntRelDir>Output/Objects/$(Configuration)/$(MSBuildProjectName)/$(Platform)</RemoteIntRelDir>
+    <RemoteDeployDir>$(RemoteRootDir)</RemoteDeployDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">_M_AMD64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='ARM64'">_M_ARM64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalWarnings Condition="'$(PlatformToolset)'=='Remote_GCC_1_0'">no-multichar;</AdditionalWarnings>
+      <AdditionalWarnings Condition="'$(PlatformToolset)'=='Remote_Clang_1_0'">no-vla-extension-static-assert;no-gnu-folding-constant;</AdditionalWarnings>
+      <CAdditionalWarning>%(AdditionalWarnings);%(CAdditionalWarning)</CAdditionalWarning>
+      <CppAdditionalWarning>%(AdditionalWarnings);%(CppAdditionalWarning)</CppAdditionalWarning>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
