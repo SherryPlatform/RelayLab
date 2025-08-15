@@ -7,6 +7,9 @@
     <Filter Include="Mile.HyperV">
       <UniqueIdentifier>{b545997b-86d5-400c-9cf2-bdc5e68a10ea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Mile.Posix.Helpers">
+      <UniqueIdentifier>{0a373378-d1fa-40d1-85d6-069fefa7237e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mile.Mobility\Mile.Mobility.Portable.Types.h">
@@ -27,5 +30,13 @@
     <ClInclude Include="Mile.HyperV\Mile.HyperV.Guest.Interface.h">
       <Filter>Mile.HyperV</Filter>
     </ClInclude>
+    <ClInclude Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.h">
+      <Filter>Mile.Posix.Helpers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp">
+      <Filter>Mile.Posix.Helpers</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

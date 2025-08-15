@@ -26,6 +26,7 @@
   <PropertyGroup>
     <IncludePath>$(MSBuildThisFileDirectory)Mile.Mobility\;$(IncludePath)</IncludePath>
     <IncludePath>$(MSBuildThisFileDirectory)Mile.HyperV\;$(IncludePath)</IncludePath>
+    <IncludePath>$(MSBuildThisFileDirectory)Mile.Posix.Helpers\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -44,6 +45,10 @@
     <ClInclude Include="Mile.HyperV\Mile.HyperV.TLFS.h" />
     <ClInclude Include="Mile.HyperV\Mile.HyperV.VMBus.h" />
     <ClInclude Include="Mile.Mobility\Mile.Mobility.Portable.Types.h" />
+    <ClInclude Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
