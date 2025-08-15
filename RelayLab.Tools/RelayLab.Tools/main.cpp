@@ -14,7 +14,7 @@
 
 #include <filesystem>
 
-EXTERN_C int MOAPI HvGinMountHcsPlan9Share(
+EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
     _In_ MO_UINT32 Port,
     _In_ MO_CONSTANT_STRING AccessName,
     _In_ MO_CONSTANT_STRING MountPoint,
@@ -91,29 +91,29 @@ int main()
         return 1;
     }
 
-    int Result = ::HvGinMountHcsPlan9Share(
+    int Result = ::RlHvMountHcsPlan9Share(
         50001,
         "NanaBox.HostDrivers",
         "/usr/lib/wsl/drivers",
         MO_TRUE,
         65536);
-    std::printf("HvGinMountHcsPlan9ReadOnlyShare returns %d\n", Result);
+    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
 
-    Result = ::HvGinMountHcsPlan9Share(
+    Result = ::RlHvMountHcsPlan9Share(
         50001,
         "NanaBox.HostLxssLib",
         "/usr/lib/wsl/lib",
         MO_TRUE,
         65536);
-    std::printf("HvGinMountHcsPlan9ReadOnlyShare returns %d\n", Result);
+    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
 
-    Result = ::HvGinMountHcsPlan9Share(
+    Result = ::RlHvMountHcsPlan9Share(
         4869,
         "RelayLab.ShareRoot",
         "/mnt/host",
         MO_FALSE,
         65536);
-    std::printf("HvGinMountHcsPlan9ReadOnlyShare returns %d\n", Result);
+    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
 
     return 0;
 }
