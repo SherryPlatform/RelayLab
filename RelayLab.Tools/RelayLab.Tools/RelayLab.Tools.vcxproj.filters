@@ -38,5 +38,6 @@
     <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp">
       <Filter>Mile.Posix.Helpers</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
 </Project>

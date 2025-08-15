@@ -36,6 +36,7 @@
       <AdditionalWarnings Condition="'$(PlatformToolset)'=='Remote_Clang_1_0'">no-vla-extension-static-assert;no-gnu-folding-constant;</AdditionalWarnings>
       <CAdditionalWarning>%(AdditionalWarnings);%(CAdditionalWarning)</CAdditionalWarning>
       <CppAdditionalWarning>%(AdditionalWarnings);%(CppAdditionalWarning)</CppAdditionalWarning>
+      <CppLanguageStandard>c++20</CppLanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -48,6 +49,7 @@
     <ClInclude Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
