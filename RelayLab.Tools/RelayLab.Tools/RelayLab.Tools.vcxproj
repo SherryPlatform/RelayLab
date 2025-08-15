@@ -23,6 +23,9 @@
     <RemoteIntRelDir>Output/Objects/$(Configuration)/$(MSBuildProjectName)/$(Platform)</RemoteIntRelDir>
     <RemoteDeployDir>$(RemoteRootDir)</RemoteDeployDir>
   </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(MSBuildThisFileDirectory)Mile.Mobility\;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">_M_AMD64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -34,6 +37,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Mile.Mobility\Mile.Mobility.Portable.Types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

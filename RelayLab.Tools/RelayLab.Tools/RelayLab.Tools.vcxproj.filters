@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Mile.Mobility">
+      <UniqueIdentifier>{77887ea6-1be5-4389-b5e3-e8d206f00615}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Mile.Mobility\Mile.Mobility.Portable.Types.h">
+      <Filter>Mile.Mobility</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
