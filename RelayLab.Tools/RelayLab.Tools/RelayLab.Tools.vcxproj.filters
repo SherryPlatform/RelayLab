@@ -4,10 +4,28 @@
     <Filter Include="Mile.Mobility">
       <UniqueIdentifier>{77887ea6-1be5-4389-b5e3-e8d206f00615}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Mile.HyperV">
+      <UniqueIdentifier>{b545997b-86d5-400c-9cf2-bdc5e68a10ea}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mile.Mobility\Mile.Mobility.Portable.Types.h">
       <Filter>Mile.Mobility</Filter>
+    </ClInclude>
+    <ClInclude Include="Mile.HyperV\Mile.HyperV.Guest.Protocols.h">
+      <Filter>Mile.HyperV</Filter>
+    </ClInclude>
+    <ClInclude Include="Mile.HyperV\Mile.HyperV.Portable.Types.h">
+      <Filter>Mile.HyperV</Filter>
+    </ClInclude>
+    <ClInclude Include="Mile.HyperV\Mile.HyperV.TLFS.h">
+      <Filter>Mile.HyperV</Filter>
+    </ClInclude>
+    <ClInclude Include="Mile.HyperV\Mile.HyperV.VMBus.h">
+      <Filter>Mile.HyperV</Filter>
+    </ClInclude>
+    <ClInclude Include="Mile.HyperV\Mile.HyperV.Guest.Interface.h">
+      <Filter>Mile.HyperV</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
