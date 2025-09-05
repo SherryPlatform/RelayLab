@@ -390,4 +390,65 @@ typedef MO_UINT8* MO_VARIABLE_ARGUMENT_LIST;
     ((VOID)((Destination) = (Source)))
 #endif
 
+// Defines result code type and values based on HRESULT from Windows.
+
+typedef MO_UINT32 MO_RESULT, *PMO_RESULT;
+
+// Operation successful. (S_OK)
+#define MO_RESULT_SUCCESS_OK ((MO_RESULT)0x00000000)
+
+// Operation successful, but with a false condition. (S_FALSE)
+#define MO_RESULT_SUCCESS_FALSE ((MO_RESULT)0x00000001)
+
+// Catastrophic failure. (E_UNEXPECTED)
+#define MO_RESULT_ERROR_UNEXPECTED ((MO_RESULT)0x8000FFFF)
+
+// Not implemented. (E_NOTIMPL)
+#define MO_RESULT_ERROR_NOT_IMPLEMENTED ((MO_RESULT)0x80004001)
+
+// Not enough memory resources are available to complete this operation.
+// (E_OUTOFMEMORY)
+#define MO_RESULT_ERROR_OUT_OF_MEMORY ((MO_RESULT)0x8007000E)
+
+// The parameter is incorrect. (E_INVALIDARG)
+#define MO_RESULT_ERROR_INVALID_PARAMETER ((MO_RESULT)0x80070057)
+
+// No such interface supported. (E_NOINTERFACE)
+#define MO_RESULT_ERROR_NO_INTERFACE ((MO_RESULT)0x80004002)
+
+// The pointer is invalid. (E_POINTER)
+#define MO_RESULT_ERROR_INVALID_POINTER ((MO_RESULT)0x80004003)
+
+// The handle is invalid. (E_HANDLE)
+#define MO_RESULT_ERROR_INVALID_HANDLE ((MO_RESULT)0x80070006)
+
+// Operation aborted. (E_ABORT)
+#define MO_RESULT_ERROR_OPERATION_ABORTED ((MO_RESULT)0x80004004)
+
+// Unspecified error. (E_FAIL)
+#define MO_RESULT_ERROR_FAIL ((MO_RESULT)0x80004005)
+
+// Access is denied. (E_ACCESSDENIED) 
+#define MO_RESULT_ERROR_ACCESS_DENIED ((MO_RESULT)0x80070005)
+
+// The data necessary to complete this operation is not yet available.
+// (E_PENDING)
+#define MO_RESULT_ERROR_PENDING ((MO_RESULT)0x8000000A)
+
+// The operation attempted to access data outside the valid range. (E_BOUNDS)
+#define MO_RESULT_ERROR_OUT_OF_BOUNDS ((MO_RESULT)0x8000000B)
+
+// A concurrent or interleaved operation changed the state of the object,
+// invalidating this operation. (E_CHANGED_STATE)
+#define MO_RESULT_ERROR_CHANGED_STATE ((MO_RESULT)0x8000000C)
+
+// An illegal state change was requested. (E_ILLEGAL_STATE_CHANGE)
+#define MO_RESULT_ERROR_ILLEGAL_STATE_CHANGE ((MO_RESULT)0x8000000D)
+
+// A method was called at an unexpected time. (E_ILLEGAL_METHOD_CALL)
+#define MO_RESULT_ERROR_ILLEGAL_METHOD_CALL ((MO_RESULT)0x8000000E)
+
+// A delegate was assigned when not allowed. (E_ILLEGAL_DELEGATE_ASSIGNMENT)
+#define MO_RESULT_ERROR_ILLEGAL_DELEGATE_ASSIGNMENT ((MO_RESULT)0x80000018)
+
 #endif // !MILE_MOBILITY_PORTABLE_TYPES
