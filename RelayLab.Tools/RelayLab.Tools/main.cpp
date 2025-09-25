@@ -174,7 +174,9 @@ EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
 
     // "/sys/bus/vmbus/devices/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/uio"
     std::string UioRootPath = Mile::FormatString(
-        "/sys/bus/vmbus/devices/%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x/uio",
+        "/sys/bus/vmbus/devices/"
+        "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x"
+        "/uio",
         InstanceId->Data1,
         InstanceId->Data2,
         InstanceId->Data3,
