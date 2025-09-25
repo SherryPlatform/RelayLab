@@ -4,6 +4,7 @@
 #include <Mile.Helpers.CppBase.h>
 
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
@@ -123,6 +124,174 @@ EXTERN_C int MOAPI RlHvUioRegisterDevice(
     else
     {
         ErrorCode = errno;
+    }
+
+    return ErrorCode;
+}
+
+typedef enum _RL_HV_UIO_MAP_TYPE
+{
+    RL_HV_UIO_MAP_TRANSMIT_RECEIVE_RING_BUFFER = 0,
+    RL_HV_UIO_MAP_INTERRUPT_PAGE = 1,
+    RL_HV_UIO_MAP_MONITOR_PAGE = 2,
+    RL_HV_UIO_MAP_RECEIVE_BUFFER = 3,
+    RL_HV_UIO_MAP_TRANSMIT_BUFFER = 4,
+    RL_HV_UIO_MAP_MAXIMUM = 5,
+} RL_HV_UIO_MAPPING_TYPE, *PRL_HV_UIO_MAPPING_TYPE;
+
+typedef struct _RL_HV_UIO_MAP_ITEM
+{
+    MO_UINTN Offset;
+    MO_UINTN Length;
+} RL_HV_UIO_MAP_ITEM, *PRL_HV_UIO_MAP_ITEM;
+
+// Format: "/dev/uioX", which X is a decimal number and maximum X is 1048575.
+#define RL_HV_UIO_DEVICE_OBJECT_PATH_PREFIX "/dev/uio"
+
+// Maximum Length: 8 ("/dev/uio") + 7 ("1048575") = 15
+#define RL_HV_UIO_DEVICE_OBJECT_PATH_MAXIMUM_LENGTH 15
+
+// Without "/dev/" prefix.
+#define RL_HV_UIO_DEVICE_OBJECT_PATH_NAME_OFFSET 5
+
+typedef struct _RL_HV_UIO_DEVICE_INFOMATION
+{
+    MO_CHAR DeviceObjectPath[RL_HV_UIO_DEVICE_OBJECT_PATH_MAXIMUM_LENGTH + 1];
+    RL_HV_UIO_MAP_ITEM MemoryMapItems[RL_HV_UIO_MAP_MAXIMUM];
+} RL_HV_UIO_DEVICE_INFOMATION, *PRL_HV_UIO_DEVICE_INFOMATION;
+
+EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
+    _Out_ PRL_HV_UIO_DEVICE_INFOMATION Information,
+    _In_ CONST MO_GUID* InstanceId)
+{
+    if (!Information || !InstanceId)
+    {
+        return EINVAL;
+    }
+    std::memset(Information, 0, sizeof(RL_HV_UIO_DEVICE_INFOMATION));
+
+    int ErrorCode = 0;
+
+    // "/sys/bus/vmbus/devices/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/uio"
+    std::string UioRootPath = Mile::FormatString(
+        "/sys/bus/vmbus/devices/%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x/uio",
+        InstanceId->Data1,
+        InstanceId->Data2,
+        InstanceId->Data3,
+        InstanceId->Data4[0],
+        InstanceId->Data4[1],
+        InstanceId->Data4[2],
+        InstanceId->Data4[3],
+        InstanceId->Data4[4],
+        InstanceId->Data4[5],
+        InstanceId->Data4[6],
+        InstanceId->Data4[7]);
+
+    DIR* DirectoryObject = ::opendir(UioRootPath.c_str());
+    if (DirectoryObject)
+    {
+        for (;;)
+        {
+            dirent* DirectoryEntry = ::readdir(DirectoryObject);
+            if (!DirectoryEntry)
+            {
+                break;
+            }
+
+            if (DT_DIR != DirectoryEntry->d_type)
+            {
+                continue;
+            }
+
+            if (0 == std::strcmp(DirectoryEntry->d_name, ".") ||
+                0 == std::strcmp(DirectoryEntry->d_name, ".."))
+            {
+                continue;
+            }
+
+            if ('u' != DirectoryEntry->d_name[0] ||
+                'i' != DirectoryEntry->d_name[1] ||
+                'o' != DirectoryEntry->d_name[2])
+            {
+                continue;
+            }
+
+            std::string Candidate = Mile::FormatString(
+                "/dev/%s",
+                DirectoryEntry->d_name);
+            if (RL_HV_UIO_DEVICE_OBJECT_PATH_MAXIMUM_LENGTH < Candidate.size())
+            {
+                continue;
+            }
+
+            if (0 != ::access(Candidate.c_str(), F_OK))
+            {
+                continue;
+            }
+
+            std::strncpy(
+                Information->DeviceObjectPath,
+                Candidate.c_str(),
+                RL_HV_UIO_DEVICE_OBJECT_PATH_MAXIMUM_LENGTH);
+            break;
+        }
+
+        if ('\0' == Information->DeviceObjectPath[0])
+        {
+            ErrorCode = ENOENT;
+        }
+
+        ::closedir(DirectoryObject);
+    }
+    else
+    {
+        ErrorCode = errno;
+    }
+
+    if (0 == ErrorCode)
+    {
+        int PageSize = ::getpagesize();
+        for (size_t i = 0; i < RL_HV_UIO_MAP_MAXIMUM; ++i)
+        {
+            Information->MemoryMapItems[i].Offset = i * PageSize;
+
+            MO_STRING DeviceObjectName = Information->DeviceObjectPath;
+            DeviceObjectName += RL_HV_UIO_DEVICE_OBJECT_PATH_NAME_OFFSET;
+
+            FILE* FileObject = std::fopen(
+                Mile::FormatString(
+                    "%s/%s/maps/map%zu/size",
+                    UioRootPath.c_str(),
+                    DeviceObjectName,
+                    i).c_str(),
+                "r");
+            if (FileObject)
+            {
+                if (EOF == std::fscanf(
+                    FileObject,
+                    "0x%zx",
+                    &Information->MemoryMapItems[i].Offset))
+                {
+                    ErrorCode = errno;
+                }
+
+                std::fclose(FileObject);
+            }
+            else
+            {
+                ErrorCode = errno;
+            }
+
+            if (0 != ErrorCode)
+            {
+                break;
+            }
+        }
+    }
+
+    if (0 != ErrorCode)
+    {
+        std::memset(Information, 0, sizeof(RL_HV_UIO_DEVICE_INFOMATION));
     }
 
     return ErrorCode;
