@@ -312,7 +312,7 @@ namespace
         catch (std::exception const& ex)
         {
             std::fprintf(stderr, "Failed to create directory: %s\n", ex.what());
-            return 1;
+            return;
         }
 
         int Result = ::RlHvMountHcsPlan9Share(
