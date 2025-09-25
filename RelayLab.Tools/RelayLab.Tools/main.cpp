@@ -297,43 +297,51 @@ EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
     return ErrorCode;
 }
 
+namespace
+{
+    void MountGpuDriversShares()
+    {
+        try
+        {
+            std::filesystem::create_directories("/usr/lib/wsl/drivers");
+            std::filesystem::create_directories("/usr/lib/wsl/lib");
+            std::filesystem::create_directories("/mnt/host");
+        }
+        catch (std::exception const& ex)
+        {
+            std::fprintf(stderr, "Failed to create directory: %s\n", ex.what());
+            return 1;
+        }
+
+        int Result = ::RlHvMountHcsPlan9Share(
+            50001,
+            "NanaBox.HostDrivers",
+            "/usr/lib/wsl/drivers",
+            MO_TRUE,
+            65536);
+        std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
+
+        Result = ::RlHvMountHcsPlan9Share(
+            50001,
+            "NanaBox.HostLxssLib",
+            "/usr/lib/wsl/lib",
+            MO_TRUE,
+            65536);
+        std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
+
+        Result = ::RlHvMountHcsPlan9Share(
+            4869,
+            "RelayLab.ShareRoot",
+            "/mnt/host",
+            MO_FALSE,
+            65536);
+        std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
+    }
+}
+
 int main()
 {
-    try
-    {
-        std::filesystem::create_directories("/usr/lib/wsl/drivers");
-        std::filesystem::create_directories("/usr/lib/wsl/lib");
-        std::filesystem::create_directories("/mnt/host");
-    }
-    catch (std::exception const& ex)
-    {
-        std::fprintf(stderr, "Failed to create directory: %s\n", ex.what());
-        return 1;
-    }
-
-    int Result = ::RlHvMountHcsPlan9Share(
-        50001,
-        "NanaBox.HostDrivers",
-        "/usr/lib/wsl/drivers",
-        MO_TRUE,
-        65536);
-    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
-
-    Result = ::RlHvMountHcsPlan9Share(
-        50001,
-        "NanaBox.HostLxssLib",
-        "/usr/lib/wsl/lib",
-        MO_TRUE,
-        65536);
-    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
-
-    Result = ::RlHvMountHcsPlan9Share(
-        4869,
-        "RelayLab.ShareRoot",
-        "/mnt/host",
-        MO_FALSE,
-        65536);
-    std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
+    ::MountGpuDriversShares();
 
     return 0;
 }
