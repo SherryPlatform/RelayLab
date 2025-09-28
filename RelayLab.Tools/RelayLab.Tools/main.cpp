@@ -15,7 +15,9 @@
 #include <cstdio>
 #include <cstring>
 
+#include <atomic>
 #include <filesystem>
+#include <span>
 
 EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
     _In_ MO_UINT32 Port,
@@ -442,6 +444,310 @@ EXTERN_C int MOAPI RlHvUioWaitInterrupt(
         sizeof(*InterruptCount)))
         ? 0
         : errno;
+}
+
+namespace
+{
+    static void GetAvailableSizeInformation(
+        _Out_opt_ PMO_UINT32 AvailableReceiveSize,
+        _Out_opt_ PMO_UINT32 AvailableTransmitSize,
+        _In_ PVMRCB RingControl,
+        _In_ MO_UINT32 DataMaximumSize)
+    {
+        MO_UINT32 AvailableReceiveSizeResult = 0;
+        MO_UINT32 AvailableTransmitSizeResult = 0;
+
+        if (RingControl)
+        {
+            if (RingControl->In >= RingControl->Out)
+            {
+                AvailableReceiveSizeResult =
+                    RingControl->In - RingControl->Out;
+                AvailableTransmitSizeResult =
+                    DataMaximumSize - AvailableReceiveSizeResult;
+            }
+            else
+            {
+                AvailableTransmitSizeResult =
+                    RingControl->Out - RingControl->In;
+                AvailableReceiveSizeResult =
+                    DataMaximumSize - AvailableTransmitSizeResult;
+            }
+        }
+
+        if (AvailableReceiveSize)
+        {
+            *AvailableReceiveSize = AvailableReceiveSizeResult;
+        }
+
+        if (AvailableTransmitSize)
+        {
+            *AvailableTransmitSize = AvailableTransmitSizeResult;
+        }
+    }
+
+    static bool PopBytesToStructure(
+        _Out_ void* Target,
+        std::span<std::uint8_t> const& Source,
+        std::size_t const& Size)
+    {
+        if (!Target || !Size || Source.size() < Size)
+        {
+            return false;
+        }
+
+        std::memcpy(Target, Source.data(), Size);
+        return true;
+    }
+
+    static MO_UINTN GetAlignedSize(
+        _In_ MO_UINTN Size,
+        _In_ MO_UINTN Alignment)
+    {
+        return (Size + Alignment - 1) & ~(Alignment - 1);
+    }
+}
+
+#define RL_HV_UIO_PIPE_PACKET_HEADER_SIZE \
+    (sizeof(VMPACKET_DESCRIPTOR) + sizeof(VMPIPE_PROTOCOL_HEADER))
+
+EXTERN_C int MOAPI RlHvUioReceive(
+    _In_ PRL_HV_UIO_DEVICE Instance,
+    _Out_ MO_POINTER Buffer,
+    _In_ MO_UINT32 NumberOfBytesToReceive,
+    _Out_ PMO_UINT32 NumberOfBytesReceived)
+{
+    if (!Instance ||
+        !Buffer ||
+        !NumberOfBytesToReceive ||
+        !NumberOfBytesReceived)
+    {
+        return EINVAL;
+    }
+    *NumberOfBytesReceived = 0;
+
+    MO_UINT32 AvailableSize = 0;
+    ::GetAvailableSizeInformation(
+        &AvailableSize,
+        nullptr,
+        Instance->IncomingControl,
+        Instance->DataMaximumSize);
+    if (AvailableSize < RL_HV_UIO_PIPE_PACKET_HEADER_SIZE)
+    {
+        return EAGAIN;
+    }
+
+    MO_UINT32 FirstReadSize = AvailableSize;
+    MO_UINT32 SecondReadSize = 0;
+    if (Instance->IncomingControl->In < Instance->IncomingControl->Out)
+    {
+        MO_UINT32 FragileSize =
+            Instance->DataMaximumSize - Instance->IncomingControl->Out;
+        if (FragileSize < AvailableSize)
+        {
+            FirstReadSize = FragileSize;
+            SecondReadSize = AvailableSize - FragileSize;
+        }
+    }
+
+    std::vector<MO_UINT8> AvailableBytes(AvailableSize);
+    std::memcpy(
+        &AvailableBytes[0],
+        Instance->IncomingData + Instance->IncomingControl->Out,
+        FirstReadSize);
+    if (SecondReadSize)
+    {
+        std::memcpy(
+            &AvailableBytes[FirstReadSize],
+            Instance->IncomingData,
+            SecondReadSize);
+    }
+
+    std::span<MO_UINT8> BytesSpan(AvailableBytes);
+
+    VMPACKET_DESCRIPTOR Descriptor = {};
+    if (!PopBytesToStructure(&Descriptor, BytesSpan, sizeof(Descriptor)))
+    {
+        return EIO;
+    }
+    if (VmbusPacketTypeDataInBand != Descriptor.Type)
+    {
+        return EIO;
+    }
+    MO_UINT32 DataOffset = static_cast<MO_UINT32>(Descriptor.DataOffset8) << 3;
+    MO_UINT32 Length = static_cast<MO_UINT32>(Descriptor.Length8) << 3;
+    if (DataOffset < sizeof(VMPACKET_DESCRIPTOR) ||
+        DataOffset > AvailableBytes.size() ||
+        DataOffset > Length)
+    {
+        return EIO;
+    }
+    MO_UINT32 ActualPacketSize = Length + sizeof(MO_UINT64);
+    if (AvailableBytes.size() < ActualPacketSize)
+    {
+        return EIO;
+    }
+    BytesSpan = BytesSpan.subspan(DataOffset);
+
+    VMPIPE_PROTOCOL_HEADER Header = {};
+    if (!PopBytesToStructure(&Header, BytesSpan, sizeof(Header)))
+    {
+        return EIO;
+    }
+    if (VmPipeMessageData != Header.PacketType)
+    {
+        return EIO;
+    }
+    MO_UINT32 PipeDataSize = Header.DataSize;
+    if (AvailableBytes.size() < sizeof(VMPIPE_PROTOCOL_HEADER) + PipeDataSize)
+    {
+        return EIO;
+    }
+    BytesSpan = BytesSpan.subspan(sizeof(VMPIPE_PROTOCOL_HEADER));
+
+    *NumberOfBytesReceived = PipeDataSize;
+    if (NumberOfBytesToReceive < PipeDataSize)
+    {
+        return EAGAIN;
+    }
+    if (!PopBytesToStructure(Buffer, BytesSpan, PipeDataSize))
+    {
+        return EIO;
+    }
+
+    MO_UINT32 FinalOffset = Instance->IncomingControl->Out + ActualPacketSize;
+    if (Instance->IncomingControl->In < Instance->IncomingControl->Out)
+    {
+        MO_UINT32 FragileSize =
+            Instance->DataMaximumSize - Instance->IncomingControl->Out;
+        if (FragileSize < ActualPacketSize)
+        {
+            FinalOffset = ActualPacketSize - FragileSize;
+        }
+    }
+
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
+    std::atomic_ref<MO_UINT32> AtomicOut(Instance->IncomingControl->Out);
+    while (!AtomicOut.compare_exchange_weak(
+        PreviousOut,
+        FinalOffset,
+        std::memory_order_acq_rel,
+        std::memory_order_acquire))
+    {
+#if defined(__i386__) || defined(__x86_64__)
+        asm volatile("pause" ::: "memory");
+#elif defined(__aarch64__)
+        asm volatile("yield" ::: "memory");
+#endif
+    }
+
+    return 0;
+}
+
+EXTERN_C int MOAPI RlHvUioTransmit(
+    _In_ PRL_HV_UIO_DEVICE Instance,
+    _In_opt_ MO_CONSTANT_POINTER Buffer,
+    _In_ MO_UINT32 NumberOfBytesToTransmit)
+{
+    if (!Instance || !Buffer || !NumberOfBytesToTransmit)
+    {
+        return EINVAL;
+    }
+
+    VMPACKET_DESCRIPTOR Descriptor = {};
+    Descriptor.Type = VmbusPacketTypeDataInBand;
+    Descriptor.DataOffset8 = static_cast<MO_UINT16>(
+        sizeof(VMPACKET_DESCRIPTOR) >> 3);
+    Descriptor.Length8 = std::min(
+        static_cast<MO_UINT16>(::GetAlignedSize(
+            RL_HV_UIO_PIPE_PACKET_HEADER_SIZE + NumberOfBytesToTransmit,
+            sizeof(MO_UINT64)) >> 3),
+        static_cast<MO_UINT16>(MO_UINT16_MAX));
+    Descriptor.Flags = 0;
+    Descriptor.TransactionId = MO_UINT64_MAX;
+
+    VMPIPE_PROTOCOL_HEADER Header = {};
+    Header.PacketType = VmPipeMessageData;
+    Header.DataSize = NumberOfBytesToTransmit;
+
+    MO_UINT32 PacketSize = static_cast<MO_UINT32>(Descriptor.Length8) << 3;
+    PacketSize += static_cast<MO_UINT32>(sizeof(MO_UINT64));
+    std::vector<MO_UINT8> PacketBytes(PacketSize);
+    std::memcpy(
+        &PacketBytes[0],
+        &Descriptor,
+        sizeof(Descriptor));
+    std::memcpy(
+        &PacketBytes[sizeof(Descriptor)],
+        &Header,
+        sizeof(Header));
+    std::memcpy(
+        &PacketBytes[sizeof(Descriptor) + sizeof(Header)],
+        Buffer,
+        NumberOfBytesToTransmit);
+    std::memcpy(
+        &PacketBytes[PacketSize - sizeof(MO_UINT64)],
+        &Instance->OutgoingControl->In,
+        sizeof(MO_UINT64));
+
+    MO_UINT32 AvailableSize = 0;
+    ::GetAvailableSizeInformation(
+        nullptr,
+        &AvailableSize,
+        Instance->OutgoingControl,
+        Instance->DataMaximumSize);
+    if (AvailableSize < PacketSize)
+    {
+        return EAGAIN;
+    }
+
+    MO_UINT32 FirstWriteSize = PacketSize;
+    MO_UINT32 SecondWriteSize = 0;
+    if (Instance->OutgoingControl->In >= Instance->OutgoingControl->Out)
+    {
+        MO_UINT32 FragileSize =
+            Instance->DataMaximumSize - Instance->OutgoingControl->In;
+        if (FragileSize < PacketSize)
+        {
+            FirstWriteSize = FragileSize;
+            SecondWriteSize = PacketSize - FragileSize;
+        }
+    }
+
+    std::memcpy(
+        Instance->OutgoingData + Instance->OutgoingControl->In,
+        &PacketBytes[0],
+        FirstWriteSize);
+    if (SecondWriteSize)
+    {
+        std::memcpy(
+            Instance->OutgoingData,
+            &PacketBytes[FirstWriteSize],
+            SecondWriteSize);
+    }
+
+    MO_UINT32 FinalOffset = SecondWriteSize > 0
+        ? SecondWriteSize
+        : Instance->OutgoingControl->In + FirstWriteSize;
+
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
+    std::atomic_ref<MO_UINT32> AtomicIn(Instance->OutgoingControl->In);
+    while (!AtomicIn.compare_exchange_weak(
+        PreviousIn,
+        FinalOffset,
+        std::memory_order_acq_rel,
+        std::memory_order_acquire))
+    {
+#if defined(__i386__) || defined(__x86_64__)
+        asm volatile("pause" ::: "memory");
+#elif defined(__aarch64__)
+        asm volatile("yield" ::: "memory");
+#endif
+    }
+
+    return 0;
 }
 
 namespace
