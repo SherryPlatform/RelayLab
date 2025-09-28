@@ -409,6 +409,41 @@ EXTERN_C int MOAPI RlHvUioOpenDevice(
     return ErrorCode;
 }
 
+EXTERN_C int MOAPI RlHvUioSetInterruptState(
+    _In_ PRL_HV_UIO_DEVICE Instance,
+    _In_ MO_BOOL InterruptState)
+{
+    if (!Instance)
+    {
+        return EINVAL;
+    }
+
+    MO_UINT32 Value = InterruptState ? 1 : 0;
+    return (sizeof(Value) == ::write(
+        Instance->FileDescriptor,
+        &Value,
+        sizeof(Value)))
+        ? 0
+        : errno;
+}
+
+EXTERN_C int MOAPI RlHvUioWaitInterrupt(
+    _In_ PRL_HV_UIO_DEVICE Instance,
+    _Out_ PMO_UINT32 InterruptCount)
+{
+    if (!Instance || !InterruptCount)
+    {
+        return EINVAL;
+    }
+
+    return (sizeof(*InterruptCount) == ::read(
+        Instance->FileDescriptor,
+        InterruptCount,
+        sizeof(*InterruptCount)))
+        ? 0
+        : errno;
+}
+
 namespace
 {
     void MountGpuDriversShares()
