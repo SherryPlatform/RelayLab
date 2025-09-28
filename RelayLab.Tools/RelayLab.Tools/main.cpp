@@ -141,8 +141,8 @@ typedef enum _RL_HV_UIO_MAP_TYPE
 
 typedef struct _RL_HV_UIO_MAP_ITEM
 {
-    MO_UINTN Offset;
-    MO_UINTN Length;
+    MO_UINT32 Offset;
+    MO_UINT32 Length;
 } RL_HV_UIO_MAP_ITEM, *PRL_HV_UIO_MAP_ITEM;
 
 // Format: "/dev/uioX", which X is a decimal number and maximum X is 1048575.
@@ -253,7 +253,7 @@ EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
     if (0 == ErrorCode)
     {
         int PageSize = ::getpagesize();
-        for (size_t i = 0; i < RL_HV_UIO_MAP_MAXIMUM; ++i)
+        for (MO_UINT32 i = 0; i < RL_HV_UIO_MAP_MAXIMUM; ++i)
         {
             Information->MemoryMapItems[i].Offset = i * PageSize;
 
