@@ -276,7 +276,7 @@ EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
                 if (EOF == std::fscanf(
                     FileObject,
                     "0x%zx",
-                    &Information->MemoryMapItems[i].Offset))
+                    &Information->MemoryMapItems[i].Length))
                 {
                     ErrorCode = errno;
                 }
