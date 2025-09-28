@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <linux/vm_sockets.h>
@@ -294,6 +296,114 @@ EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
     if (0 != ErrorCode)
     {
         std::memset(Information, 0, sizeof(RL_HV_UIO_DEVICE_INFOMATION));
+    }
+
+    return ErrorCode;
+}
+
+typedef struct _RL_HV_UIO_DEVICE
+{
+    RL_HV_UIO_DEVICE_INFOMATION DeviceInformation;
+    int FileDescriptor;
+    MO_UINT32 RingBufferSize;
+    MO_UINT32 ControlMaximumSize;
+    MO_UINT32 DataMaximumSize;
+    PVMRCB OutgoingControl;
+    PMO_UINT8 OutgoingData;
+    PVMRCB IncomingControl;
+    PMO_UINT8 IncomingData;
+} RL_HV_UIO_DEVICE, *PRL_HV_UIO_DEVICE;
+
+EXTERN_C VOID MOAPI RlHvUioCloseDevice(
+    _Inout_ PRL_HV_UIO_DEVICE Instance)
+{
+    if (Instance)
+    {
+        if (MAP_FAILED != Instance->OutgoingControl)
+        {
+            ::munmap(
+                Instance->OutgoingControl,
+                Instance->RingBufferSize * 2);
+        }
+
+        if (-1 != Instance->FileDescriptor)
+        {
+            ::close(Instance->FileDescriptor);
+        }
+
+        std::memset(Instance, 0, sizeof(RL_HV_UIO_DEVICE));
+    }
+}
+
+EXTERN_C int MOAPI RlHvUioOpenDevice(
+    _Out_ PRL_HV_UIO_DEVICE Instance,
+    _In_ CONST MO_GUID* InstanceId)
+{
+    if (!Instance || !InstanceId)
+    {
+        return EINVAL;
+    }
+    std::memset(Instance, 0, sizeof(RL_HV_UIO_DEVICE));
+
+    int ErrorCode = ::RlHvUioGetDeviceInformation(
+        &Instance->DeviceInformation,
+        InstanceId);
+    if (0 == ErrorCode)
+    {
+        Instance->FileDescriptor = ::open(
+            Instance->DeviceInformation.DeviceObjectPath,
+            O_RDWR);
+        if (-1 != Instance->FileDescriptor)
+        {
+            MO_UINT32 BlockOffset = Instance->DeviceInformation.MemoryMapItems[
+                RL_HV_UIO_MAP_TRANSMIT_RECEIVE_RING_BUFFER].Offset;
+            MO_UINT32 BlockLength = Instance->DeviceInformation.MemoryMapItems[
+                RL_HV_UIO_MAP_TRANSMIT_RECEIVE_RING_BUFFER].Length;
+
+            PMO_UINT8 MapStart = reinterpret_cast<PMO_UINT8>(::mmap(
+                nullptr,
+                BlockLength,
+                PROT_READ | PROT_WRITE,
+                MAP_SHARED,
+                Instance->FileDescriptor,
+                BlockOffset));
+            if (MAP_FAILED != MapStart)
+            {
+                int PageSize = ::getpagesize();
+
+                Instance->RingBufferSize = BlockLength / 2;
+                Instance->ControlMaximumSize = PageSize;
+                Instance->DataMaximumSize =
+                    Instance->RingBufferSize - Instance->ControlMaximumSize;
+
+                PMO_UINT8 OutgoingStart = MapStart;
+                PMO_UINT8 IncomingStart = MapStart + Instance->RingBufferSize;
+
+                Instance->OutgoingControl = 
+                    reinterpret_cast<PVMRCB>(OutgoingStart);
+                Instance->OutgoingData =
+                    OutgoingStart + Instance->ControlMaximumSize;
+                Instance->IncomingControl = 
+                    reinterpret_cast<PVMRCB>(IncomingStart);
+                Instance->IncomingData =
+                    IncomingStart + Instance->ControlMaximumSize;
+
+                Instance->IncomingControl->InterruptMask = 0;
+            }
+            else
+            {
+                ErrorCode = errno;
+            }
+        }
+        else
+        {
+            ErrorCode = errno;
+        }
+    }
+
+    if (0 != ErrorCode)
+    {
+        ::RlHvUioCloseDevice(Instance);
     }
 
     return ErrorCode;
