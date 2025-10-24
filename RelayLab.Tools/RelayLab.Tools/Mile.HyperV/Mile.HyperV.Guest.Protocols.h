@@ -42,6 +42,7 @@
 //   - vm\devices\storage\storvsp_protocol\src\lib.rs
 //   - vm\devices\net\netvsp\src\protocol.rs
 //   - vm\devices\net\netvsp\src\rndisprot.rs
+//   - vm\devices\pci\vpci_protocol\src\lib.rs
 // - Symbols in Windows version 10.0.14347.0's icsvc.dll
 // - Symbols in Windows version 10.0.14347.0's icsvcext.dll
 // - Symbols in Windows version 10.0.14347.0's HyperVideo.sys
@@ -165,6 +166,11 @@ typedef HV_INT32 NTSTATUS;
 // The transport connection attempt was refused by the remote system.
 #define STATUS_CONNECTION_REFUSED ((NTSTATUS)0xC0000236L)
 #endif // !STATUS_CONNECTION_REFUSED
+
+#ifndef STATUS_BAD_DATA
+// Bad data.
+#define STATUS_BAD_DATA ((NTSTATUS)0xC000090BL)
+#endif
 
 // Definition from Windows Software Development Kit
 // Note: Add HV_ prefix to avoid conflict
@@ -622,7 +628,7 @@ typedef struct _VMBUS_CHANNEL_INITIATE_CONTACT
         };
     };
     HV_GPA ParentToChildMonitorPageGpa;
-    HV_GPA ChildToParentMonitorPageGpa; 
+    HV_GPA ChildToParentMonitorPageGpa;
     // Used with `VMBUS_FEATURE_FLAG_CLIENT_ID` when the feature is supported
     // (Copper and above).
     HV_GUID ClientId;
@@ -2152,13 +2158,13 @@ typedef struct _NVSP_MESSAGE_HEADER
 
 // The following base NDIS type is referenced by nvspprotocol.h. See
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/objectheader/ns-objectheader-ndis_object_header
-// Note: Add HV_ prefix to avoid conflict
-typedef struct _HV_NDIS_OBJECT_HEADER
+// Note: Use RNDIS prefix instead of NDIS prefix to avoid conflict.
+typedef struct _RNDIS_OBJECT_HEADER
 {
     HV_UINT8 Type;
     HV_UINT8 Revision;
     HV_UINT16 Size;
-} HV_NDIS_OBJECT_HEADER, *PHV_NDIS_OBJECT_HEADER;
+} RNDIS_OBJECT_HEADER, *PRNDIS_OBJECT_HEADER;
 
 // Init Messages
 
@@ -2384,7 +2390,7 @@ typedef HV_UINT32 NDIS_OID, *PNDIS_OID;
 typedef struct _NVSP_5_MESSAGE_OID_QUERY_EX
 {
     // Header information for the Query OID
-    HV_NDIS_OBJECT_HEADER Header;
+    RNDIS_OBJECT_HEADER Header;
     // OID being queried
     NDIS_OID Oid;
 } NVSP_5_MESSAGE_OID_QUERY_EX, *PNVSP_5_MESSAGE_OID_QUERY_EX;
@@ -2959,6 +2965,25 @@ typedef HV_UINT32 RNDIS_AF, *PRNDIS_AF;
 #define RNDIS_MAC_OPTION_RECEIVE_AT_DPC 0x00000100
 #define RNDIS_MAC_OPTION_8021Q_VLAN 0x00000200
 
+typedef struct _RNDIS_LINK_STATE
+{
+    RNDIS_OBJECT_HEADER Header;
+    HV_UINT32 MediaConnectState;
+    HV_UINT32 MediaDuplexState;
+    HV_UINT64 XmitLinkSpeed;
+    HV_UINT64 RcvLinkSpeed;
+    HV_UINT32 PauseFunctions;
+    HV_UINT32 AutoNegotiationFlags;
+} RNDIS_LINK_STATE, *PRNDIS_LINK_STATE;
+
+// The following structure is used in OID_GEN_LINK_SPEED_EX for interfaces and
+// is expressed in bits per second.
+typedef struct _RNDIS_LINK_SPEED
+{
+    HV_UINT64 XmitLinkSpeed;
+    HV_UINT64 RcvLinkSpeed;
+} RNDIS_LINK_SPEED, *PRNDIS_LINK_SPEED;
+
 // NdisInitialize message
 typedef struct _RNDIS_INITIALIZE_REQUEST
 {
@@ -2983,6 +3008,15 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE
     HV_UINT32 AFListOffset;
     HV_UINT32 AFListSize;
 } RNDIS_INITIALIZE_COMPLETE, *PRNDIS_INITIALIZE_COMPLETE;
+
+// Call manager devices only: Information about an address family supported by
+// the device is appended to the response to NdisInitialize.
+typedef struct _RCONDIS_ADDRESS_FAMILY
+{
+    RNDIS_AF AddressFamily;
+    HV_UINT32 MajorVersion;
+    HV_UINT32 MinorVersion;
+} RCONDIS_ADDRESS_FAMILY, *PRCONDIS_ADDRESS_FAMILY;
 
 // NdisHalt message
 typedef struct _RNDIS_HALT_REQUEST
@@ -3103,10 +3137,119 @@ typedef struct _RNDIS_PACKET
     HV_UINT32 Reserved;
 } RNDIS_PACKET, *PRNDIS_PACKET;
 
+// Optional Out of Band data associated with a Data message.
+typedef struct _RNDIS_OOBD
+{
+    HV_UINT32 Size;
+    RNDIS_CLASS_ID Type;
+    HV_UINT32 ClassInformationOffset;
+} RNDIS_OOBD, *PRNDIS_OOBD;
+
+#define RNDIS_PACKET_INFO_FLAGS_MULTI_SUBALLOC 1
+#define RNDIS_PACKET_INFO_FLAGS_MULTI_SUBALLOC_FIRST_FRAGMENT 2
+#define RNDIS_PACKET_INFO_FLAGS_MULTI_SUBALLOC_LAST_FRAGMENT 4
+
+#define RNDIS_PACKET_INFO_ID_VERSION_V1 1
+
+typedef struct _RNDIS_PACKET_ID_INFO
+{
+    HV_UINT8 Version;
+    HV_UINT8 Flags;
+    HV_UINT16 PacketId;
+} RNDIS_PACKET_ID_INFO, *PRNDIS_PACKET_ID_INFO;
+
+#define RNDIS_PACKET_INFO_ID 1
+
+// Packet extension field contents associated with a Data message.
+typedef struct _RNDIS_PER_PACKET_INFO
+{
+    HV_UINT32 Size;
+    HV_UINT32 Type; // high bit means internal
+    HV_UINT32 PerPacketInformationOffset;
+} RNDIS_PER_PACKET_INFO, *PRNDIS_PER_PACKET_INFO;
+
+// Per-NetBufferList information for TcpIpChecksumNetBufferListInfo.
+typedef struct _RNDIS_TCP_IP_CHECKSUM_NET_BUFFER_LIST_INFO
+{
+    union
+    {
+        struct
+        {
+            HV_UINT32 IsIPv4 : 1;
+            HV_UINT32 IsIPv6 : 1;
+            HV_UINT32 TcpChecksum : 1;
+            HV_UINT32 UdpChecksum : 1;
+            HV_UINT32 IpHeaderChecksum : 1;
+            HV_UINT32 Reserved : 11;
+            HV_UINT32 TcpHeaderOffset : 10;
+        } Transmit;
+        struct
+        {
+            HV_UINT32 TcpChecksumFailed : 1;
+            HV_UINT32 UdpChecksumFailed : 1;
+            HV_UINT32 IpChecksumFailed : 1;
+            HV_UINT32 TcpChecksumSucceeded : 1;
+            HV_UINT32 UdpChecksumSucceeded : 1;
+            HV_UINT32 IpChecksumSucceeded : 1;
+            HV_UINT32 Loopback : 1;
+            HV_UINT32 TcpChecksumValueInvalid : 1;
+            HV_UINT32 IpChecksumValueInvalid : 1;
+        } Receive;
+        HV_UINT32 Value;
+    };
+} RNDIS_TCP_IP_CHECKSUM_NET_BUFFER_LIST_INFO, *PRNDIS_TCP_IP_CHECKSUM_NET_BUFFER_LIST_INFO;
+
+// Per-NetBufferList information for TcpLargeSendNetBufferListInfo.
+typedef struct _RNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO
+{
+    union
+    {
+        struct
+        {
+            HV_UINT32 Unused : 30;
+            HV_UINT32 Type : 1;
+            HV_UINT32 Reserved2 : 1;
+        } Transmit;
+        struct
+        {
+            HV_UINT32 MSS : 20;
+            HV_UINT32 TcpHeaderOffset : 10;
+            HV_UINT32 Type : 1;
+            HV_UINT32 Reserved2 : 1;
+        } LsoV1Transmit;
+        struct
+        {
+            HV_UINT32 TcpPayload : 30;
+            HV_UINT32 Type : 1;
+            HV_UINT32 Reserved2 : 1;
+        } LsoV1TransmitComplete;
+        struct
+        {
+            HV_UINT32 MSS : 20;
+            HV_UINT32 TcpHeaderOffset : 10;
+            HV_UINT32 Type : 1;
+            HV_UINT32 IPVersion : 1;
+        } LsoV2Transmit;
+        struct
+        {
+            HV_UINT32 Reserved : 30;
+            HV_UINT32 Type : 1;
+            HV_UINT32 Reserved2 : 1;
+        } LsoV2TransmitComplete;
+        HV_UINT32 Value;
+    };
+} RNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO, *PRNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO;
+
+#define RNDIS_PPI_TCP_IP_CHECKSUM 0
+#define RNDIS_PPI_LARGE_SEND_OFFLOAD 2
+
 // Values for ParameterType in ConfigParameterInfo
 
 #define RNDIS_CONFIG_PARAM_TYPE_INTEGER 0
+#define RNDIS_CONFIG_PARAM_TYPE_HEX_INTEGER 1
 #define RNDIS_CONFIG_PARAM_TYPE_STRING 2
+#define RNDIS_CONFIG_PARAM_TYPE_MULTI_STRING 3
+#define RNDIS_CONFIG_PARAM_TYPE_BINARY 4
 
 // Format of Information buffer passed in a SetRequest for the OID
 // OID_GEN_RNDIS_CONFIG_PARAMETER.
@@ -3299,6 +3442,416 @@ typedef struct _RNDIS_MESSAGE
 #define RNDIS_MESSAGE_SIZE(Message) ( \
     sizeof(Message) + (sizeof(RNDIS_MESSAGE) - sizeof(RNDIS_MESSAGE_CONTAINER)))
 
+// Used in RNDIS_OBJECT_HEADER
+
+#define RNDIS_OBJECT_TYPE_DEFAULT 0x80
+#define RNDIS_OBJECT_TYPE_RSS_CAPABILITIES 0x88
+#define RNDIS_OBJECT_TYPE_RSS_PARAMETERS 0x89
+#define RNDIS_OBJECT_TYPE_REQUEST_EX 0x96
+#define RNDIS_OBJECT_TYPE_OFFLOAD 0xA7
+#define RNDIS_OBJECT_TYPE_OFFLOAD_ENCAPSULATION 0xA8
+
+typedef struct _RNDIS_RECEIVE_SCALE_CAPABILITIES
+{
+    RNDIS_OBJECT_HEADER Header;
+    HV_UINT32 CapabilitiesFlags;
+    HV_UINT32 NumberOfInterruptMessages;
+    HV_UINT32 NumberOfReceiveQueues;
+    HV_UINT16 NumberOfIndirectionTableEntries;
+} RNDIS_RECEIVE_SCALE_CAPABILITIES, *PRNDIS_RECEIVE_SCALE_CAPABILITIES;
+
+#define RNDIS_SIZEOF_RECEIVE_SCALE_CAPABILITIES_REVISION_2 \
+    HV_FIELD_SIZE_THROUGH( \
+        RNDIS_RECEIVE_SCALE_CAPABILITIES, \
+        NumberOfIndirectionTableEntries)
+
+typedef struct _RNDIS_RECEIVE_SCALE_PARAMETERS
+{
+    RNDIS_OBJECT_HEADER Header;
+    // Qualifies the rest of the information.
+    HV_UINT16 Flags;
+    // The base CPU number to do receive processing. not used.
+    HV_UINT16 BaseCpuNumber;
+    // This describes the hash function and type being enabled.
+    HV_UINT32 HashInformation;
+    // The size of indirection table array.
+    HV_UINT16 IndirectionTableSize;
+    // The offset of the indirection table from the beginning of this structure.
+    HV_UINT32 IndirectionTableOffset;
+    // The size of the secret key.
+    HV_UINT16 HashSecretKeySize;
+    // The offset of the secret key from the beginning of this structure.
+    HV_UINT32 HashSecretKeyOffset;
+
+    // Array of type GROUP_AFFINITY representing procs used in the indirection
+    // table
+
+    HV_UINT32 ProcessorMasksOffset;
+    HV_UINT32 NumberOfProcessorMasks;
+    HV_UINT32 ProcessorMasksEntrySize;
+
+    // The hash map table is a CCHAR array for Revision 1.
+    // It is a PROCESSOR_NUMBER array for Revision 2
+
+    // Specifies default RSS processor.
+    HV_UINT32 DefaultProcessorNumber;
+} RNDIS_RECEIVE_SCALE_PARAMETERS, *PRNDIS_RECEIVE_SCALE_PARAMETERS;
+
+#define RNDIS_SIZEOF_RECEIVE_SCALE_PARAMETERS_REVISION_1 \
+    HV_FIELD_SIZE_THROUGH( \
+        RNDIS_RECEIVE_SCALE_PARAMETERS, \
+        HashSecretKeyOffset)
+#define RNDIS_SIZEOF_RECEIVE_SCALE_PARAMETERS_REVISION_2 \
+    HV_FIELD_SIZE_THROUGH( \
+        RNDIS_RECEIVE_SCALE_PARAMETERS, \
+        ProcessorMasksEntrySize)
+#define RNDIS_SIZEOF_RECEIVE_SCALE_PARAMETERS_REVISION_3 \
+    HV_FIELD_SIZE_THROUGH( \
+        RNDIS_RECEIVE_SCALE_PARAMETERS, \
+        DefaultProcessorNumber)
+
+// Flags to denote the parameters that are kept unmodified.
+
+#define RNDIS_RSS_PARAM_FLAG_BASE_CPU_UNCHANGED 0x0001
+#define RNDIS_RSS_PARAM_FLAG_HASH_INFO_UNCHANGED 0x0002
+#define RNDIS_RSS_PARAM_FLAG_ITABLE_UNCHANGED 0x0004
+#define RNDIS_RSS_PARAM_FLAG_HASH_KEY_UNCHANGED 0x0008
+#define RNDIS_RSS_PARAM_FLAG_DISABLE_RSS 0x0010
+#define RNDIS_RSS_PARAM_FLAG_DEFAULT_PROCESSOR_UNCHANGED 0x0020
+
+#define RNDIS_RSS_INDIRECTION_TABLE_SIZE_REVISION_1 128
+#define RNDIS_RSS_HASH_SECRET_KEY_SIZE_REVISION_1 40
+
+#define RNDIS_RSS_INDIRECTION_TABLE_MAX_SIZE_REVISION_1 128
+
+#define RNDIS_HASH_FUNCTION_MASK 0x000000FF
+#define RNDIS_HASH_FUNCTION_TOEPLITZ 0x00000001
+
+#define RNDIS_HASH_IPV4 0x00000100
+#define RNDIS_HASH_TCP_IPV4 0x00000200
+#define RNDIS_HASH_IPV6 0x00000400
+#define RNDIS_HASH_IPV6_EX 0x00000800
+#define RNDIS_HASH_TCP_IPV6 0x00001000
+#define RNDIS_HASH_TCP_IPV6_EX 0x00002000
+#define RNDIS_HASH_UDP_IPV4 0x00004000
+#define RNDIS_HASH_UDP_IPV6 0x00008000
+#define RNDIS_HASH_UDP_IPV6_EX 0x00010000
+
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV4 0x00000100
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6 0x00000200
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6_EX 0x00000400
+#define RNDIS_RSS_CAPS_HASH_TYPE_UDP_IPV4 0x00000800
+#define RNDIS_RSS_CAPS_HASH_TYPE_UDP_IPV6 0x00001000
+#define RNDIS_RSS_CAPS_HASH_TYPE_UDP_IPV6_EX 0x00002000
+#define RNDIS_RSS_CAPS_MESSAGE_SIGNALED_INTERRUPTS 0x01000000
+#define RNDIS_RSS_CAPS_CLASSIFICATION_AT_ISR 0x02000000
+#define RNDIS_RSS_CAPS_CLASSIFICATION_AT_DPC 0x04000000
+#define RNDIS_RSS_CAPS_USING_MSI_X 0x08000000
+#define RNDIS_RSS_CAPS_RSS_AVAILABLE_ON_PORTS 0x10000000
+#define RNDIS_RSS_CAPS_SUPPORTS_MSI_X 0x20000000
+#define RNDIS_RSS_CAPS_SUPPORTS_INDEPENDENT_ENTRY_MOVE 0x40000000
+
+#define RNDIS_ENCAPSULATION_IEEE_802_3 2
+
+typedef struct _RNDIS_TCP_IP_CHECKSUM_OFFLOAD
+{
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 IpOptionsSupported : 2;
+        HV_UINT32 TcpOptionsSupported : 2;
+        HV_UINT32 TcpChecksum : 2;
+        HV_UINT32 UdpChecksum : 2;
+        HV_UINT32 IpChecksum : 2;
+    } IPv4Transmit;
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 IpOptionsSupported : 2;
+        HV_UINT32 TcpOptionsSupported : 2;
+        HV_UINT32 TcpChecksum : 2;
+        HV_UINT32 UdpChecksum : 2;
+        HV_UINT32 IpChecksum : 2;
+    } IPv4Receive;
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 IpExtensionHeadersSupported : 2;
+        HV_UINT32 TcpOptionsSupported : 2;
+        HV_UINT32 TcpChecksum : 2;
+        HV_UINT32 UdpChecksum : 2;
+    } IPv6Transmit;
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 IpExtensionHeadersSupported : 2;
+        HV_UINT32 TcpOptionsSupported : 2;
+        HV_UINT32 TcpChecksum : 2;
+        HV_UINT32 UdpChecksum : 2;
+    } IPv6Receive;
+} RNDIS_TCP_IP_CHECKSUM_OFFLOAD, *PRNDIS_TCP_IP_CHECKSUM_OFFLOAD;
+
+typedef struct _RNDIS_TCP_LARGE_SEND_OFFLOAD_V1
+{
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 MaxOffLoadSize;
+        HV_UINT32 MinSegmentCount;
+        HV_UINT32 TcpOptions : 2;
+        HV_UINT32 IpOptions : 2;
+    } IPv4;
+} RNDIS_TCP_LARGE_SEND_OFFLOAD_V1, *PRNDIS_TCP_LARGE_SEND_OFFLOAD_V1;
+
+typedef struct _RNDIS_IPSEC_OFFLOAD_V1
+{
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 AhEspCombined;
+        HV_UINT32 TransportTunnelCombined;
+        HV_UINT32 IPv4Options;
+        HV_UINT32 Flags;
+    } Supported;
+    struct
+    {
+        HV_UINT32 Md5 : 2;
+        HV_UINT32 Sha_1 : 2;
+        HV_UINT32 Transport : 2;
+        HV_UINT32 Tunnel : 2;
+        HV_UINT32 Send : 2;
+        HV_UINT32 Receive : 2;
+    } IPv4AH;
+    struct
+    {
+        HV_UINT32 Des : 2;
+        HV_UINT32 Reserved : 2;
+        HV_UINT32 TripleDes : 2;
+        HV_UINT32 NullEsp : 2;
+        HV_UINT32 Transport : 2;
+        HV_UINT32 Tunnel : 2;
+        HV_UINT32 Send : 2;
+        HV_UINT32 Receive : 2;
+    } IPv4ESP;
+} RNDIS_IPSEC_OFFLOAD_V1, *PRNDIS_IPSEC_OFFLOAD_V1;
+
+typedef struct _RNDIS_TCP_LARGE_SEND_OFFLOAD_V2
+{
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 MaxOffLoadSize;
+        HV_UINT32 MinSegmentCount;
+    } IPv4;
+    struct
+    {
+        HV_UINT32 Encapsulation;
+        HV_UINT32 MaxOffLoadSize;
+        HV_UINT32 MinSegmentCount;
+        HV_UINT32 IpExtensionHeadersSupported : 2;
+        HV_UINT32 TcpOptionsSupported : 2;
+    } IPv6;
+} RNDIS_TCP_LARGE_SEND_OFFLOAD_V2, *PRNDIS_TCP_LARGE_SEND_OFFLOAD_V2;
+
+typedef struct _RNDIS_IPSEC_OFFLOAD_V2
+{
+    HV_UINT32 Encapsulation;
+    HV_UINT8 IPv6Supported; // BOOLEAN
+    HV_UINT8 IPv4Options; // BOOLEAN
+    HV_UINT8 IPv6NonIPsecExtensionHeaders; // BOOLEAN
+    HV_UINT8 Ah; // BOOLEAN
+    HV_UINT8 Esp; // BOOLEAN
+    HV_UINT8 AhEspCombined; // BOOLEAN
+    HV_UINT8 Transport; // BOOLEAN
+    HV_UINT8 Tunnel; // BOOLEAN
+    HV_UINT8 TransportTunnelCombined; // BOOLEAN
+    HV_UINT8 LsoSupported; // BOOLEAN
+    HV_UINT8 ExtendedSequenceNumbers; // BOOLEAN
+    HV_UINT32 UdpEsp;
+    HV_UINT32 AuthenticationAlgorithms;
+    HV_UINT32 EncryptionAlgorithms;
+    HV_UINT32 SaOffloadCapacity;
+} RNDIS_IPSEC_OFFLOAD_V2, *PRNDIS_IPSEC_OFFLOAD_V2;
+
+typedef struct _RNDIS_TCP_RECV_SEG_COALESCE_OFFLOAD
+{
+    struct
+    {
+        HV_UINT8 Enabled; // BOOLEAN
+    } IPv4;
+    struct
+    {
+        HV_UINT8 Enabled; // BOOLEAN
+    } IPv6;
+} RNDIS_TCP_RECV_SEG_COALESCE_OFFLOAD, *PRNDIS_TCP_RECV_SEG_COALESCE_OFFLOAD;
+
+typedef struct _RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD
+{
+    HV_UINT32 TransmitChecksumOffloadSupported : 4;
+    HV_UINT32 ReceiveChecksumOffloadSupported : 4;
+    HV_UINT32 LsoV2Supported : 4;
+    HV_UINT32 RssSupported : 4;
+    HV_UINT32 VmqSupported : 4;
+    HV_UINT32 MaxHeaderSizeSupported;
+} RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD, *PRNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD;
+
+typedef struct _RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD_V2
+{
+    HV_UINT32 TransmitChecksumOffloadSupported : 4;
+    HV_UINT32 ReceiveChecksumOffloadSupported : 4;
+    HV_UINT32 LsoV2Supported : 4;
+    HV_UINT32 RssSupported : 4;
+    HV_UINT32 VmqSupported : 4;
+    HV_UINT32 Reserved : 12;
+    HV_UINT32 MaxHeaderSizeSupported;
+    union _ENCAPSULATION_PROTOCOL_INFO
+    {
+        struct _VXLAN_INFO
+        {
+            HV_UINT16 VxlanUDPPortNumber;
+            HV_UINT16 VxlanUDPPortNumberConfigurable : 1;
+        } VxlanInfo;
+        HV_UINT32 Value;
+    } EncapsulationProtocolInfo;
+    HV_UINT32 Reserved1;
+    HV_UINT32 Reserved2;
+} RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD_V2, *PRNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD_V2;
+
+typedef struct _RNDIS_OFFLOAD
+{
+    RNDIS_OBJECT_HEADER Header;
+    // Checksum Offload information
+    RNDIS_TCP_IP_CHECKSUM_OFFLOAD Checksum;
+    // Large Send Offload information
+    RNDIS_TCP_LARGE_SEND_OFFLOAD_V1 LsoV1;
+    // IPsec Offload Information
+    RNDIS_IPSEC_OFFLOAD_V1 IPsecV1;
+    // Large Send Offload version 2 Information
+    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2 LsoV2;
+    HV_UINT32 Flags;
+    // IPsec offload V2
+    RNDIS_IPSEC_OFFLOAD_V2 IPsecV2;
+    // Receive Segment Coalescing information
+    RNDIS_TCP_RECV_SEG_COALESCE_OFFLOAD Rsc;
+    // NVGRE Encapsulated packet task offload information
+    RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD EncapsulatedPacketTaskOffloadGre;
+    // VXLAN Encapsulated packet task offload information
+    RNDIS_ENCAPSULATED_PACKET_TASK_OFFLOAD_V2 EncapsulatedPacketTaskOffloadVxlan;
+    // Enabled encapsulation types for Encapsulated packet task offload
+    HV_UINT8 EncapsulationTypes;
+} RNDIS_OFFLOAD, *PRNDIS_OFFLOAD;
+
+#define RNDIS_SIZEOF_NDIS_OFFLOAD_REVISION_1 \
+    HV_FIELD_SIZE_THROUGH(RNDIS_OFFLOAD, Flags)
+#define RNDIS_SIZEOF_NDIS_OFFLOAD_REVISION_3 \
+    HV_FIELD_SIZE_THROUGH(RNDIS_OFFLOAD, EncapsulatedPacketTaskOffloadGre)
+
+typedef struct _RNDIS_OFFLOAD_ENCAPSULATION
+{
+    RNDIS_OBJECT_HEADER Header;
+    struct
+    {
+        HV_UINT32 Enabled;
+        HV_UINT32 EncapsulationType;
+        HV_UINT32 HeaderSize;
+    } IPv4;
+    struct
+    {
+        HV_UINT32 Enabled;
+        HV_UINT32 EncapsulationType;
+        HV_UINT32 HeaderSize;
+    } IPv6;
+} RNDIS_OFFLOAD_ENCAPSULATION, *PRNDIS_OFFLOAD_ENCAPSULATION;
+
+#define RNDIS_SIZEOF_OFFLOAD_ENCAPSULATION_REVISION_1 \
+    HV_FIELD_SIZE_THROUGH(RNDIS_OFFLOAD_ENCAPSULATION, IPv6.HeaderSize)
+
+#define RNDIS_OFFLOAD_NOT_SUPPORTED 0
+#define RNDIS_OFFLOAD_SUPPORTED 1
+
+#define RNDIS_OFFLOAD_PARAMETERS_NO_CHANGE 0
+#define RNDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_TX_ENABLED_RX_DISABLED 2
+#define RNDIS_OFFLOAD_PARAMETERS_RX_ENABLED_TX_DISABLED 3
+#define RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED 4
+
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV1_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV1_ENABLED 2
+
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV1_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV1_AH_ENABLED 2
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV1_ESP_ENABLED 3
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV1_AH_AND_ESP_ENABLED 4
+
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV2_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED 2
+
+#define RNDIS_OFFLOAD_PARAMETERS_SKIP_REGISTRY_UPDATE 0x00000001
+
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV2_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV2_AH_ENABLED 2
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV2_ESP_ENABLED 3
+#define RNDIS_OFFLOAD_PARAMETERS_IPSECV2_AH_AND_ESP_ENABLED 4
+
+#define RNDIS_OFFLOAD_PARAMETERS_RSC_DISABLED 1
+#define RNDIS_OFFLOAD_PARAMETERS_RSC_ENABLED 2
+
+#define RNDIS_OFFLOAD_SET_NO_CHANGE 0
+#define RNDIS_OFFLOAD_SET_ON 1
+#define RNDIS_OFFLOAD_SET_OFF 2
+
+#define RNDIS_ENCAPSULATION_TYPE_GRE_MAC 0x00000001
+#define RNDIS_ENCAPSULATION_TYPE_VXLAN 0x00000002
+
+// Every field can use the RNDIS_OFFLOAD_PARAMETERS_* values also can use
+// RNDIS_OFFLOAD_PARAMETERS_NO_CHANGE to leave the field unchanged.
+typedef struct _RNDIS_OFFLOAD_PARAMETERS
+{
+    RNDIS_OBJECT_HEADER Header;
+    HV_UINT8 IPv4Checksum; // RNDIS_OFFLOAD_PARAMETERS_*
+    HV_UINT8 TCPIPv4Checksum; // RNDIS_OFFLOAD_PARAMETERS_*
+    HV_UINT8 UDPIPv4Checksum; // RNDIS_OFFLOAD_PARAMETERS_*
+    HV_UINT8 TCPIPv6Checksum; // RNDIS_OFFLOAD_PARAMETERS_*
+    HV_UINT8 UDPIPv6Checksum; // RNDIS_OFFLOAD_PARAMETERS_*
+    HV_UINT8 LsoV1; // RNDIS_OFFLOAD_PARAMETERS_LSOV1_*
+    HV_UINT8 IPsecV1; // RNDIS_OFFLOAD_PARAMETERS_IPSECV1_*
+    HV_UINT8 LsoV2IPv4; // RNDIS_OFFLOAD_PARAMETERS_LSOV2_*
+    HV_UINT8 LsoV2IPv6; // RNDIS_OFFLOAD_PARAMETERS_LSOV2_*
+    HV_UINT8 TcpConnectionIPv4; // NDIS_OFFLOAD_PARAMETERS_NO_CHANGE only
+    HV_UINT8 TcpConnectionIPv6; // NDIS_OFFLOAD_PARAMETERS_NO_CHANGE only
+    HV_UINT32 Flags; // RNDIS_OFFLOAD_PARAMETERS_SKIP_REGISTRY_UPDATE
+    HV_UINT8 IPsecV2; // RNDIS_OFFLOAD_PARAMETERS_IPSECV2_*
+    HV_UINT8 IPsecV2IPv4; // RNDIS_OFFLOAD_PARAMETERS_IPSECV2_*
+    HV_UINT8 RscIPv4; // RNDIS_OFFLOAD_PARAMETERS_RSC_*
+    HV_UINT8 RscIPv6; // RNDIS_OFFLOAD_PARAMETERS_RSC_*
+    HV_UINT8 EncapsulatedPacketTaskOffload; // RNDIS_OFFLOAD_SET_*
+    HV_UINT8 EncapsulationTypes; // RNDIS_ENCAPSULATION_TYPE_*
+    union _ENCAPSULATION_PROTOCOL_PARAMETERS
+    {
+        struct _VXLAN_PARAMETERS
+        {
+            HV_UINT16 VxlanUDPPortNumber;
+        } VxlanParameters;
+        HV_UINT32 Value;
+    } EncapsulationProtocolParameters;
+} RNDIS_OFFLOAD_PARAMETERS, *PRNDIS_OFFLOAD_PARAMETERS;
+
+#define RNDIS_SIZEOF_OFFLOAD_PARAMETERS_REVISION_1 \
+    HV_FIELD_SIZE_THROUGH(RNDIS_OFFLOAD_PARAMETERS, Flags)
+
+// Rndis Packet Filter Flags (OID_GEN_CURRENT_PACKET_FILTER)
+
+#define RNDIS_PACKET_TYPE_NONE 0x00000000
+#define RNDIS_PACKET_TYPE_DIRECTED 0x00000001
+#define RNDIS_PACKET_TYPE_MULTICAST 0x00000002
+#define RNDIS_PACKET_TYPE_ALL_MULTICAST 0x00000004
+#define RNDIS_PACKET_TYPE_BROADCAST 0x00000008
+#define RNDIS_NPROTO_PACKET_FILTER ( \
+    RNDIS_PACKET_TYPE_DIRECTED | \
+    RNDIS_PACKET_TYPE_MULTICAST | \
+    RNDIS_PACKET_TYPE_ALL_MULTICAST | \
+    RNDIS_PACKET_TYPE_BROADCAST)
+
 // *****************************************************************************
 // Microsoft Hyper-V Virtual PCI Bus
 //
@@ -3313,13 +3866,33 @@ const HV_GUID VPCI_CLASS_ID =
 };
 
 #ifndef _WDMDDK_
+
+// Types of resources that can be allocated to a PCI device.
+
+// No resource specified
 #define CmResourceTypeNull 0
+// I/O port resource
+#define CmResourceTypePort 1
+// Interrupt resource
+#define CmResourceTypeInterrupt 2
+// Memory resource
 #define CmResourceTypeMemory 3
+// DMA resource
+#define CmResourceTypeDma 4
+// Device-specific resource
+#define CmResourceTypeDeviceSpecific 5
+// PCI bus number resource
+#define CmResourceTypeBusNumber 6
+// Large memory resource (for memory regions larger than 4GB)
+#define CmResourceTypeMemoryLarge 7
 
 // Define the bit masks exclusive to type CmResourceTypeMemoryLarge.
 
+// Flag for 40-bit large memory
 #define CM_RESOURCE_MEMORY_LARGE_40 0x0200
+// Flag for 48-bit large memory
 #define CM_RESOURCE_MEMORY_LARGE_48 0x0400
+// Flag for 64-bit large memory
 #define CM_RESOURCE_MEMORY_LARGE_64 0x0800
 
 // Define limits for large memory resources
@@ -3330,17 +3903,24 @@ const HV_GUID VPCI_CLASS_ID =
 
 // Make sure alignment is made properly by compiler
 #pragma pack(4)
+// Descriptor for a device resource.
+// Contains information about a single resource allocated to a device, such as
+// memory, I/O ports, interrupts, etc.
 typedef struct _CM_PARTIAL_RESOURCE_DESCRIPTOR
 {
+    // Type of resource (CmResourceType*)
     HV_UINT8 Type;
+    // Sharing disposition
     HV_UINT8 ShareDisposition;
+    // Resource-specific flags (CM_RESOURCE_MEMORY_LARGE_*)
     HV_UINT16 Flags;
     union
     {
         struct
         {
-            // PHYSICAL_ADDRESS
+            // Base address of the resource (native endian) (PHYSICAL_ADDRESS)
             HV_UINT64 Start;
+            // Adjusted length of the resource
             HV_UINT32 Length;
         } Generic;
         struct
@@ -3354,28 +3934,52 @@ typedef struct _CM_PARTIAL_RESOURCE_DESCRIPTOR
 
 HV_STATIC_ASSERT(sizeof(CM_PARTIAL_RESOURCE_DESCRIPTOR) == 0x14);
 
+// Resource list for a device.
+// Contains descriptors for all resources assigned to a device.
+typedef struct _CM_PARTIAL_RESOURCE_LIST
+{
+    // Version of the resource list format
+    HV_UINT16 Version;
+    // Revision of the resource list format
+    HV_UINT16 Revision;
+    // Number of descriptors in the list
+    HV_UINT32 Count;
+    // Resource descriptors for the device's PCI BARs
+    CM_PARTIAL_RESOURCE_DESCRIPTOR PartialDescriptors[HV_ANYSIZE_ARRAY];
+} CM_PARTIAL_RESOURCE_LIST, *PCM_PARTIAL_RESOURCE_LIST;
+
 #ifndef _WINNT_
-typedef enum _DEVICE_POWER_STATE {
+// Device power states.
+// Represents the different power states a device can be in.
+typedef enum _DEVICE_POWER_STATE
+{
     PowerDeviceUnspecified = 0,
+    // Device is fully powered and operational
     PowerDeviceD0,
     PowerDeviceD1,
     PowerDeviceD2,
+    // Device is powered off but still enumerated
     PowerDeviceD3,
     PowerDeviceMaximum
 } DEVICE_POWER_STATE, *PDEVICE_POWER_STATE;
 #endif // !_WINNT_
 
+// PCI slot number.
+// Identifies a specific device and function on the PCI bus.
 typedef struct _PCI_SLOT_NUMBER
 {
     union
     {
         struct
         {
+            // Device number (0-31)
             HV_UINT32 DeviceNumber : 5;
+            // Function number (0-7)
             HV_UINT32 FunctionNumber : 3;
+            // Reserved bits
             HV_UINT32 Reserved : 24;
         } bits;
-        HV_UINT32 AsULONG;
+        HV_UINT32 AsUINT32;
     } u;
 } PCI_SLOT_NUMBER, *PPCI_SLOT_NUMBER;
 #endif // !_WDMDDK_
@@ -3393,54 +3997,133 @@ typedef struct _PCI_SLOT_NUMBER
 #define PCI_MAX_BAR 0x0006
 #endif // !PCI_MAX_BAR
 
+// The MMIO page the guest uses to write the target slot number. This page is
+// used by the guest to identify which PCI slot it wants to communicate with.
+#define VPCI_MMIO_PAGE_SLOT_NUMBER 0
+
+// The MMIO page the guest uses to read and write the current slot's config
+// space. After selecting a slot with `VPCI_MMIO_PAGE_SLOT_NUMBER`, the guest
+// can interact with the selected device's PCI configuration space through this
+// page.
+#define VPCI_MMIO_PAGE_CONFIG_SPACE 0x1000
+
+// The mask to apply to an MMIO address to get the page number. MMIO operations
+// are aligned to page boundaries, and this mask extracts the page component
+// from an address, zeroing out the offset within the page.
+#define VPCI_MMIO_PAGE_MASK 0xfff
+
+// Plug and Play identifier for a PCI device.
+// Contains the vendor and device identification information, as well as the
+// device class, subclass, and programming interface information.
 typedef struct _VPCI_PNP_ID
 {
+    // PCI vendor ID
     HV_UINT16 VendorID;
+    // PCI device ID
     HV_UINT16 DeviceID;
+    // PCI revision ID
     HV_UINT8 RevisionID;
+    // PCI programming interface
     HV_UINT8 ProgIf;
+    // PCI sub-class code
     HV_UINT8 SubClass;
+    // PCI base class code
     HV_UINT8 BaseClass;
+    // PCI sub-vendor ID
     HV_UINT16 SubVendorID;
+    // PCI subsystem ID
     HV_UINT16 SubSystemID;
 } VPCI_PNP_ID, *PVPCI_PNP_ID;
 
-#define VPCI_PROTOCOL_VERSION_RS1 0x00010002
-#define VPCI_PROTOCOL_VERSION_CURRENT VPCI_PROTOCOL_VERSION_RS1
+// Protocol versions supported by VPCI.
+// Each version corresponds to a specific Windows release or feature set.
 
+// Windows 8 version
+#define VPCI_PROTOCOL_VERSION_WIN8 0x00010000
+// Windows 10 version
+#define VPCI_PROTOCOL_VERSION_WIN10 0x00010001
+// Windows RS1 (Redstone 1) version
+#define VPCI_PROTOCOL_VERSION_RS1 0x00010002
+// Windows VB version
+#define VPCI_PROTOCOL_VERSION_VB 0x00010003
+// Windows FE version (adds wider vector types for ARM64 interrupts)
+#define VPCI_PROTOCOL_VERSION_FE 0x00010004
+// Windows GE version (adds device reset)
+#define VPCI_PROTOCOL_VERSION_GE 0x00010005
+// Windows DT version (allows Windows guests to dynamically map interrupts)
+#define VPCI_PROTOCOL_VERSION_DT 0x00010006
+
+// Some definitions in mu_msvm.
+
+#define VPCI_PROTOCOL_VERSION_CURRENT VPCI_PROTOCOL_VERSION_RS1
 static const HV_UINT32 VscSupportedVersions[] =
 {
     VPCI_PROTOCOL_VERSION_RS1
 };
 
-// Messages between the Virtual PCI driver and its VSP
+// Message types used in the Virtual PCI protocol communication. These values
+// identify the type of operation being requested or notification being sent.
+// The message type is included in the header of each protocol message.
 typedef enum _VPCI_MESSAGE
 {
+    // Bus relations information sent from the VSP to the VSC
     VpciMsgBusRelations = 0x42490000,
+    // Request to query bus relations information
     VpciMsgQueryBusRelations,
+    // Invalidate a specific device
     VpciMsgInvalidateDevice,
+    // Invalidate the entire bus
     VpciMsgInvalidateBus,
+    // Request to change a device's power state
     VpciMsgDevicePowerStateChange,
+    // Query current resource requirements for a device
     VpciMsgCurrentResourceRequirements,
+    // Get the resources currently assigned to a device
     VpciMsgGetResources,
+    // Notification that a device is entering D0 (powered on) state
     VpciMsgFdoD0Entry,
+    // Notification that a device is exiting D0 state
     VpciMsgFdoD0Exit,
+    // Read a block of data from a device
     VpciMsgReadBlock,
+    // Write a block of data to a device
     VpciMsgWriteBlock,
+    // Request to eject a device
     VpciMsgEject,
+    // Query if a device can be stopped
     VpciMsgQueryStop,
+    // Re-enable a device that was stopped
     VpciMsgReEnable,
+    // Notification that a query stop operation failed
     VpciMsgQueryStopFailed,
+    // Notification that a device ejection is complete
     VpciMsgEjectComplete,
+    // Assigned resources notification for a device
     VpciMsgAssignedResources,
+    // Request to release resources for a device
     VpciMsgReleaseResources,
+    // Invalidate a block of data
     VpciMsgInvalidateBlock,
+    // Query the protocol version supported
     VpciMsgQueryProtocolVersion,
+    // Create an interrupt for a device
     VpciMsgCreateInterruptMessage,
+    // Delete an interrupt for a device
     VpciMsgDeleteInterruptMessage,
+    // Assigned resources notification (version 2)
     VpciMsgAssignedResources2,
+    // Create an interrupt for a device (version 2)
     VpciMsgCreateInterruptMessage2,
-    VpciMsgDeleteInterruptMessage2
+    // Delete an interrupt for a device (version 2)
+    VpciMsgDeleteInterruptMessage2,
+    // Bus relations information (version 2)
+    VpciMsgBusRelations2,
+    // Assigned resources notification (version 3)
+    VpciMsgAssignedResources3,
+    // Create an interrupt for a device (version 3)
+    VpciMsgCreateInterruptMessage3,
+    // Reset a device
+    VpciMsgResetDevice,
 } VPCI_MESSAGE, *PVPCI_MESSAGE;
 
 typedef struct _VPCI_PACKET_HEADER
@@ -3453,81 +4136,273 @@ typedef struct _VPCI_REPLY_HEADER
     HV_UINT32 Status;
 } VPCI_REPLY_HEADER, *PVPCI_REPLY_HEADER;
 
+// Description of a PCI device in the VPCI bus.
 typedef struct _VPCI_DEVICE_DESCRIPTION
 {
+    // Plug and Play identification information
     VPCI_PNP_ID IDs;
-    HV_UINT32 Slot;
+    // PCI slot number
+    PCI_SLOT_NUMBER Slot;
+    // Device serial number
     HV_UINT32 SerialNumber;
 } VPCI_DEVICE_DESCRIPTION, *PVPCI_DEVICE_DESCRIPTION;
 
+// Message for querying bus relations.
+// This message type is used to report information about devices present on the
+// bus.
 typedef struct _VPCI_QUERY_BUS_RELATIONS
 {
+    // Type of message (must be VpciMsgBusRelations)
     VPCI_PACKET_HEADER Header;
+    // Number of devices reported
     HV_UINT32 DeviceCount;
+    // Alignment for following devices.
     VPCI_DEVICE_DESCRIPTION Devices[HV_ANYSIZE_ARRAY];
 } VPCI_QUERY_BUS_RELATIONS, *PVPCI_QUERY_BUS_RELATIONS;
 
+// Extended device description (version 2).
+// This version adds support for NUMA node information and additional flags.
+typedef struct _VPCI_DEVICE_DESCRIPTION_2
+{
+    // Plug and Play identification information
+    VPCI_PNP_ID IDs;
+    // PCI slot number
+    PCI_SLOT_NUMBER Slot;
+    // Device serial number
+    HV_UINT32 SerialNumber;
+    // Device-specific flags
+    HV_UINT32 Flags;
+    // NUMA node the device is associated with
+    HV_UINT16 NumaNode;
+    // Reserved field
+    HV_UINT16 Reserved;
+} VPCI_DEVICE_DESCRIPTION_2, *PVPCI_DEVICE_DESCRIPTION_2;
+
+// Message for querying bus relations (version 2).
+// Extended version of the QueryBusRelations message with additional device
+// information.
+typedef struct _VPCI_QUERY_BUS_RELATIONS_2
+{
+    // Type of message (must be VpciMsgBusRelations2)
+    VPCI_PACKET_HEADER Header;
+    // Number of devices reported
+    HV_UINT32 DeviceCount;
+    // Alignment for following devices.
+    VPCI_DEVICE_DESCRIPTION_2 Devices[HV_ANYSIZE_ARRAY];
+} VPCI_QUERY_BUS_RELATIONS_2, *PVPCI_QUERY_BUS_RELATIONS_2;
+
 #define VPCI_MAX_DEVICES_PER_BUS 255
+
+// Interrupt delivery mode
+
+// Fixed priority delivery mode
+#define VPCI_DELIVERY_MODE_FIXED 0
+// Lowest priority delivery mode (x86 only)
+#define VPCI_DELIVERY_MODE_LOWEST_PRIORITY 1
+
+// MSI resource descriptor (version 1).
+// Used for legacy protocol versions before RS1.
+// Contains a union of either descriptor (request) or remapped (response) data.
+typedef struct _VPCI_MESSAGE_RESOURCE
+{
+    union
+    {
+        // Union of descriptor (request) and remap (response) data
+        HV_UINT64 ResourceData[2];
+        // Remapped MSI resource information.
+        // Contains the address and data values for a programmed MSI interrupt.
+        struct
+        {
+            // Reserved field
+            HV_UINT16 Reserved;
+            // Number of message slots
+            HV_UINT16 MessageCount;
+            // MSI data payload value
+            HV_UINT32 DataPayload;
+            // MSI address value
+            HV_UINT64 Address;
+        } Remapped;
+        // MSI resource descriptor information.
+        // Contains information about an MSI interrupt request.
+        struct
+        {
+            // Interrupt vector number
+            HV_UINT8 Vector;
+            // Interrupt delivery mode
+            HV_UINT8 DeliveryMode;
+            // Number of interrupt vectors requested
+            HV_UINT16 VectorCount;
+            // Reserved fields
+            HV_UINT16 Reserved[2];
+            // Processor mask for interrupt affinity
+            HV_UINT64 ProcessorMask;
+        } Descriptor;
+    };
+} VPCI_MESSAGE_RESOURCE, *PVPCI_MESSAGE_RESOURCE;
 
 #define VPCI_MESSAGE_RESOURCE_2_MAX_CPU_COUNT 32
 
+// MSI resource descriptor (version 2).
+// Enhanced version that supports specifying individual processors rather than
+// using a bit mask.
 typedef struct _VPCI_MESSAGE_RESOURCE_2
 {
     union
     {
+        // Union of descriptor (request) and remap (response) data
+        HV_UINT64 ResourceData[9];
+        // Remapped MSI resource information.
+        // Contains the address and data values for a programmed MSI interrupt.
         struct
         {
+            // Reserved field
             HV_UINT16 Reserved;
+            // Number of message slots
             HV_UINT16 MessageCount;
+            // MSI data payload value
             HV_UINT32 DataPayload;
+            // MSI address value
             HV_UINT64 Address;
-            HV_UINT16 Reserved2[27];
         } Remapped;
+        // MSI resource descriptor information.
+        // Contains information about an MSI interrupt request.
         struct
         {
+            // Interrupt vector number
             HV_UINT8 Vector;
+            // Interrupt delivery mode
             HV_UINT8 DeliveryMode;
+            // Number of interrupt vectors requested
             HV_UINT16 VectorCount;
+            // Number of processors in the ProcessorArray
             HV_UINT16 ProcessorCount;
+            // Array of processor IDs for interrupt affinity
             HV_UINT16 ProcessorArray[VPCI_MESSAGE_RESOURCE_2_MAX_CPU_COUNT];
         } Descriptor;
     };
 } VPCI_MESSAGE_RESOURCE_2, *PVPCI_MESSAGE_RESOURCE_2;
 
+// MSI resource descriptor (version 3).
+// Further enhanced version with a full 32-bit vector number.
+typedef struct _VPCI_MESSAGE_RESOURCE_3
+{
+    union
+    {
+        // Union of descriptor (request) and remap (response) data
+        HV_UINT64 ResourceData[10];
+        // Remapped MSI resource information.
+        // Contains the address and data values for a programmed MSI interrupt.
+        struct
+        {
+            // Reserved field
+            HV_UINT16 Reserved;
+            // Number of message slots
+            HV_UINT16 MessageCount;
+            // MSI data payload value
+            HV_UINT32 DataPayload;
+            // MSI address value
+            HV_UINT64 Address;
+        } Remapped;
+        // MSI resource descriptor information.
+        // Contains information about an MSI interrupt request.
+        struct
+        {
+            // 32-bit interrupt vector number
+            HV_UINT32 Vector;
+            // Interrupt delivery mode
+            HV_UINT8 DeliveryMode;
+            // Reserved field
+            HV_UINT8 Reserved;
+            // Number of interrupt vectors requested
+            HV_UINT16 VectorCount;
+            // Number of processors in the ProcessorArray
+            HV_UINT16 ProcessorCount;
+            // Array of processor IDs for interrupt affinity
+            HV_UINT16 ProcessorArray[VPCI_MESSAGE_RESOURCE_2_MAX_CPU_COUNT];
+        } Descriptor;
+    };
+} VPCI_MESSAGE_RESOURCE_3, *PVPCI_MESSAGE_RESOURCE_3;
+
+// Message used to query the protocol version.
 typedef struct _VPCI_QUERY_PROTOCOL_VERSION
 {
+    // Type of message (must be VpciMsgQueryProtocolVersion)
     VPCI_PACKET_HEADER Header;
+    // The protocol version being queried (VPCI_PROTOCOL_VERSION_*)
     HV_UINT32 ProtocolVersion;
 } VPCI_QUERY_PROTOCOL_VERSION, *PVPCI_QUERY_PROTOCOL_VERSION;
 
+// Response to a protocol version query.
 typedef struct _VPCI_PROTOCOL_VERSION_REPLY
 {
+    // Status of the version query operation
     VPCI_REPLY_HEADER Header;
+    // Protocol version supported by the responder
     HV_UINT32 ProtocolVersion;
 } VPCI_PROTOCOL_VERSION_REPLY, *PVPCI_PROTOCOL_VERSION_REPLY;
 
+// Message to query resource requirements for a device.
 typedef struct _VPCI_QUERY_RESOURCE_REQUIREMENTS
 {
+    // Type of message (must be VpciMsgCurrentResourceRequirements)
     VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
     PCI_SLOT_NUMBER Slot;
 } VPCI_QUERY_RESOURCE_REQUIREMENTS, *PVPCI_QUERY_RESOURCE_REQUIREMENTS;
 
+// Response to a resource requirements query.
+// Contains information about the BAR (Base Address Register) requirements of a
+// device.
 typedef struct _VPCI_RESOURCE_REQUIREMENTS_REPLY
 {
+    // Status of the query operation
     VPCI_REPLY_HEADER Header;
+    // BAR masks for the device's PCI BARs
     HV_UINT32 Bars[PCI_MAX_BAR];
 } VPCI_RESOURCE_REQUIREMENTS_REPLY, *PVPCI_RESOURCE_REQUIREMENTS_REPLY;
 
+// Message to change a device's power state.
 typedef struct _VPCI_DEVICE_POWER_CHANGE
 {
     union
     {
+        // Type of message (must be VpciMsgDevicePowerStateChange)
         VPCI_PACKET_HEADER Header;
         VPCI_REPLY_HEADER ReplyHeader;
     };
+    // PCI slot number of the target device
     PCI_SLOT_NUMBER Slot;
+    // Target power state
     DEVICE_POWER_STATE TargetState;
 } VPCI_DEVICE_POWER_CHANGE, *PVPCI_DEVICE_POWER_CHANGE;
+
+// This message indicates which resources the device is "decoding" within the
+// child partition at the moment that it is sent. It is valid for the device to
+// be decoding no resources. Mmio resources are configured using Base Address
+// Registers which are limited to 6. Unused registers and registers that are
+// used at the high part of 64-bit addresses are encoded as CmResourceTypeNull.
+// The completion packet uses the same structure to return the translated MSI
+// resources.
+typedef struct _VPCI_DEVICE_TRANSLATE
+{
+    union
+    {
+        // Type of message (must be VpciMsgAssignedResources)
+        VPCI_PACKET_HEADER Header;
+        // Status of the translation operation
+        VPCI_REPLY_HEADER ReplyHeader;
+    };
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // Request: MMIO resource descriptors for the device's PCI BARs
+    // Reply: Translated MMIO resource descriptors
+    CM_PARTIAL_RESOURCE_DESCRIPTOR MmioResources[PCI_MAX_BAR];
+    // Request: Number of MSI resources to follow
+    // Reply: Number of MSI resources that follow
+    HV_UINT32 MsiResourceCount;
+    // Followed by array of VPCI_MESSAGE_RESOURCE.
+    VPCI_MESSAGE_RESOURCE MsiResources[HV_ANYSIZE_ARRAY];
+} VPCI_DEVICE_TRANSLATE, *PVPCI_DEVICE_TRANSLATE;
 
 // This message indicates which resources the device is "decoding" within the
 // child partition at the moment that it is sent. It is valid for the device to
@@ -3540,13 +4415,21 @@ typedef struct _VPCI_DEVICE_TRANSLATE_2
 {
     union
     {
-        VPCI_PACKET_HEADER         Header;
-        VPCI_REPLY_HEADER          ReplyHeader;
+        // Type of message (must be VpciMsgAssignedResources2)
+        VPCI_PACKET_HEADER Header;
+        // Status of the translation operation
+        VPCI_REPLY_HEADER ReplyHeader;
     };
-    PCI_SLOT_NUMBER                Slot;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // Request: MMIO resource descriptors for the device's PCI BARs
+    // Reply: Translated MMIO resource descriptors
     CM_PARTIAL_RESOURCE_DESCRIPTOR MmioResources[PCI_MAX_BAR];
-    HV_UINT32                         MsiResourceCount;
-    VPCI_MESSAGE_RESOURCE_2        MsiResources[HV_ANYSIZE_ARRAY];
+    // Request: Number of MSI resources to follow
+    // Reply: Number of MSI resources that follow
+    HV_UINT32 MsiResourceCount;
+    // Followed by array of VPCI_MESSAGE_RESOURCE_2.
+    VPCI_MESSAGE_RESOURCE_2 MsiResources[HV_ANYSIZE_ARRAY];
 } VPCI_DEVICE_TRANSLATE_2, *PVPCI_DEVICE_TRANSLATE_2;
 
 // NOTE: This doesn't exist in the windows header. Normally we'd use the the
@@ -3555,14 +4438,61 @@ typedef struct _VPCI_DEVICE_TRANSLATE_2
 // about the status, so this is a nice partial packet for that.
 typedef struct _VPCI_DEVICE_TRANSLATE_2_REPLY
 {
+    // Status of the translation operation
     VPCI_REPLY_HEADER Header;
+    // PCI slot number of the target device
     PCI_SLOT_NUMBER Slot;
-}  VPCI_DEVICE_TRANSLATE_2_REPLY, *PVPCI_DEVICE_TRANSLATE_2_REPLY;
+} VPCI_DEVICE_TRANSLATE_2_REPLY, *PVPCI_DEVICE_TRANSLATE_2_REPLY;
 
+// This message indicates which resources the device is "decoding" within the
+// child partition at the moment that it is sent. It is valid for the device to
+// be decoding no resources. Mmio resources are configured using Base Address
+// Registers which are limited to 6. Unused registers and registers that are
+// used at the high part of 64-bit addresses are encoded as CmResourceTypeNull.
+// The completion packet uses the same structure to return the translated MSI
+// resources.
+typedef struct _VPCI_DEVICE_TRANSLATE_3
+{
+    union
+    {
+        // Type of message (must be VpciMsgAssignedResources3)
+        VPCI_PACKET_HEADER Header;
+        // Status of the translation operation
+        VPCI_REPLY_HEADER ReplyHeader;
+    };
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // Request: MMIO resource descriptors for the device's PCI BARs
+    // Reply: Translated MMIO resource descriptors
+    CM_PARTIAL_RESOURCE_DESCRIPTOR MmioResources[PCI_MAX_BAR];
+    // Request: Number of MSI resources to follow
+    // Reply: Number of MSI resources that follow
+    HV_UINT32 MsiResourceCount;
+    // Followed by array of VPCI_MESSAGE_RESOURCE_3.
+    VPCI_MESSAGE_RESOURCE_3 MsiResources[HV_ANYSIZE_ARRAY];
+} VPCI_DEVICE_TRANSLATE_3, *PVPCI_DEVICE_TRANSLATE_3;
+
+// Maximum number of interrupt messages supported per device.
+// This is calculated as 500 total resources minus 6 for the BARs.
+#define VPCI_MAX_SUPPORTED_INTERRUPT_MESSAGES 494
+
+// Maximum size of a packet in the VPCI protocol.
+// This constant defines the maximum buffer size needed to hold a complete
+// protocol message, including the largest possible payload (a device translate
+// message with the maximum number of interrupt resources).
+#define VPCI_MAXIMUM_PACKET_SIZE ( \
+    sizeof(VPCI_DEVICE_TRANSLATE_3) + ( \
+        (VPCI_MAX_SUPPORTED_INTERRUPT_MESSAGES - 1) * \
+        sizeof(VPCI_MESSAGE_RESOURCE_3)))
+
+// Message to notify a device is entering D0 (powered on) state.
 typedef struct _VPCI_FDO_D0_ENTRY
 {
+    // Type of message (must be VpciMsgFdoD0Entry)
     VPCI_PACKET_HEADER Header;
+    // Padding field
     HV_UINT32 Padding;
+    // Base MMIO address for the device
     HV_UINT64 MmioStart;
 } VPCI_FDO_D0_ENTRY, *PVPCI_FDO_D0_ENTRY;
 
@@ -3598,6 +4528,89 @@ typedef struct _PCI_BAR_FORMAT
 } PCI_BAR_FORMAT;
 
 #define PCI_BAR_MEMORY_TYPE_64BIT 0x2
+
+// Message to get currently assigned resources.
+typedef struct _VPCI_GET_RESOURCES
+{
+    // Type of message (must be VpciMsgGetResources)
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // Reserved fields
+    HV_UINT64 Reserved[3];
+} VPCI_GET_RESOURCES, *PVPCI_GET_RESOURCES;
+
+// Note: MsiResourceDescriptor is VPCI_MESSAGE_RESOURCE
+//       MsiResourceDescriptor2 is VPCI_MESSAGE_RESOURCE_2
+//       MsiResourceDescriptor3 is VPCI_MESSAGE_RESOURCE_3
+
+// Message to create an interrupt for a device (version 1).
+typedef struct _VPCI_CREATE_INTERRUPT_MESSAGE
+{
+    // Type of message (must be VpciMsgCreateInterruptMessage)
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // MSI descriptor for the requested interrupt (Descriptor field)
+    VPCI_MESSAGE_RESOURCE MsiResourceDescriptor;
+} VPCI_CREATE_INTERRUPT_MESSAGE, *PVPCI_CREATE_INTERRUPT_MESSAGE;
+
+// Response to an interrupt creation request.
+typedef struct _VPCI_CREATE_INTERRUPT_REPLY
+{
+    // Status of the creation operation
+    VPCI_REPLY_HEADER Header;
+    // Remapped MSI resource for the created interrupt (Remapped field)
+    VPCI_MESSAGE_RESOURCE RemappedMsiResource;
+} VPCI_CREATE_INTERRUPT_REPLY, *PVPCI_CREATE_INTERRUPT_REPLY;
+
+// Message to create an interrupt for a device (version 2).
+// Enhanced version that supports specifying individual processors rather than
+// using a bit mask.
+typedef struct _VPCI_CREATE_INTERRUPT_MESSAGE_2
+{
+    // Type of message (must be VpciMsgCreateInterruptMessage2)
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // MSI descriptor for the requested interrupt (Descriptor field)
+    VPCI_MESSAGE_RESOURCE_2 MsiResourceDescriptor;
+} VPCI_CREATE_INTERRUPT_MESSAGE_2, *PVPCI_CREATE_INTERRUPT_MESSAGE_2;
+
+// Message to create an interrupt for a device (version 2).
+// Enhanced version that supports specifying individual processors rather than
+// using a bit mask.
+typedef struct _VPCI_CREATE_INTERRUPT_MESSAGE_3
+{
+    // Type of message (must be VpciMsgCreateInterruptMessage3)
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // MSI descriptor for the requested interrupt (Descriptor field)
+    VPCI_MESSAGE_RESOURCE_3 MsiResourceDescriptor;
+} VPCI_CREATE_INTERRUPT_MESSAGE_3, *PVPCI_CREATE_INTERRUPT_MESSAGE_3;
+
+// Message to delete an interrupt for a device.
+typedef struct _VPCI_DELETE_INTERRUPT_MESSAGE
+{
+    // Type of message (must be VpciMsgDeleteInterruptMessage or
+    // VpciMsgDeleteInterruptMessage2)
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+    // Remapped MSI resource for the interrupt to delete (Remapped field)
+    VPCI_MESSAGE_RESOURCE RemappedMsiResource;
+} VPCI_DELETE_INTERRUPT_MESSAGE, *PVPCI_DELETE_INTERRUPT_MESSAGE;
+
+// Base message format for PDO (Physical Device Object) operations.
+// Used for operations like release resources.
+typedef struct _VPCI_PDO_MESSAGE
+{
+    // Type of message
+    VPCI_PACKET_HEADER Header;
+    // PCI slot number of the target device
+    PCI_SLOT_NUMBER Slot;
+} VPCI_PDO_MESSAGE, *PVPCI_PDO_MESSAGE;
 
 // *****************************************************************************
 // Microsoft Hyper-V Virtual Machine Bus File System
