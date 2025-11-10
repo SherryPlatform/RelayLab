@@ -126,6 +126,8 @@ typedef MO_UINT32 MO_UINTN;
 #define MO_INTN_MAX MO_INT32_MAX
 #define MO_UINTN_MAX MO_UINT32_MAX
 #endif
+typedef MO_INTN *PMO_INTN;
+typedef MO_UINTN *PMO_UINTN;
 
 typedef MO_UINT8 MO_BOOL, *PMO_BOOL;
 #define MO_FALSE 0
@@ -428,7 +430,7 @@ typedef MO_UINT32 MO_RESULT, *PMO_RESULT;
 // Unspecified error. (E_FAIL)
 #define MO_RESULT_ERROR_FAIL ((MO_RESULT)0x80004005)
 
-// Access is denied. (E_ACCESSDENIED) 
+// Access is denied. (E_ACCESSDENIED)
 #define MO_RESULT_ERROR_ACCESS_DENIED ((MO_RESULT)0x80070005)
 
 // The data necessary to complete this operation is not yet available.
