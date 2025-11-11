@@ -111,23 +111,72 @@ typedef unsigned long long MO_UINT64, *PMO_UINT64;
 #define MO_UINT32_MAX 0xFFFFFFFFU
 #define MO_UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 
+#ifndef MO_POINTER_SIZE
 #if defined(_WIN64) || defined(_LP64) || defined(__LP64__)
+#define MO_POINTER_SIZE 8
+#else
+#define MO_POINTER_SIZE 4
+#endif
+#endif // !MO_POINTER_SIZE
+
+#ifndef MO_POINTER_WIDTH
+#if (MO_POINTER_SIZE == 8)
+#define MO_POINTER_WIDTH 64
+#elif (MO_POINTER_SIZE == 4)
+#define MO_POINTER_WIDTH 32
+#elif (MO_POINTER_SIZE == 2)
+#define MO_POINTER_WIDTH 16
+#elif (MO_POINTER_SIZE == 1)
+#define MO_POINTER_WIDTH 8
+#else
+#error "[MO_POINTER_WIDTH] Non-standard target. Please define a custom value."
+#endif
+#endif // !MO_POINTER_WIDTH
+
+#if (MO_POINTER_SIZE == 8)
 typedef MO_INT64 MO_INTN;
 typedef MO_UINT64 MO_UINTN;
 
 #define MO_INTN_MIN MO_INT64_MIN
 #define MO_INTN_MAX MO_INT64_MAX
 #define MO_UINTN_MAX MO_UINT64_MAX
-#else
+#elif (MO_POINTER_SIZE == 4)
 typedef MO_INT32 MO_INTN;
 typedef MO_UINT32 MO_UINTN;
 
 #define MO_INTN_MIN MO_INT32_MIN
 #define MO_INTN_MAX MO_INT32_MAX
 #define MO_UINTN_MAX MO_UINT32_MAX
+#elif (MO_POINTER_SIZE == 2)
+typedef MO_INT16 MO_INTN;
+typedef MO_UINT16 MO_UINTN;
+
+#define MO_INTN_MIN MO_INT16_MIN
+#define MO_INTN_MAX MO_INT16_MAX
+#define MO_UINTN_MAX MO_UINT16_MAX
+#elif (MO_POINTER_SIZE == 1)
+typedef MO_INT8 MO_INTN;
+typedef MO_UINT8 MO_UINTN;
+
+#define MO_INTN_MIN MO_INT8_MIN
+#define MO_INTN_MAX MO_INT8_MAX
+#define MO_UINTN_MAX MO_UINT8_MAX
+#else
+#error "[MO_INTN, MO_UINTN] Non-standard target. Please define a custom type."
 #endif
+
 typedef MO_INTN *PMO_INTN;
 typedef MO_UINTN *PMO_UINTN;
+
+#ifndef MO_INTN_MIN
+#error "[MO_INTN_MIN] Non-standard target. Please define a custom value."
+#endif // !MO_INTN_MIN
+#ifndef MO_INTN_MAX
+#error "[MO_INTN_MAX] Non-standard target. Please define a custom value."
+#endif // !MO_INTN_MAX
+#ifndef MO_UINTN_MAX
+#error "[MO_UINTN_MAX] Non-standard target. Please define a custom value."
+#endif // !MO_UINTN_MAX
 
 typedef MO_UINT8 MO_BOOL, *PMO_BOOL;
 #define MO_FALSE 0
@@ -215,6 +264,30 @@ typedef struct _MO_GUID
 #define MO_DECLSPEC_ALIGN(x) __attribute__ ((aligned(x)))
 #endif
 #endif // !MO_DECLSPEC_ALIGN
+
+#ifndef MO_FORCEINLINE
+#ifdef _MSC_VER
+#if (_MSC_VER >= 1200)
+#define MO_FORCEINLINE __forceinline
+#else
+#define MO_FORCEINLINE __inline
+#endif
+#elif defined(__GNUC__) || defined (__clang__)
+#define MO_FORCEINLINE __attribute__((always_inline)) inline
+#else
+#define MO_FORCEINLINE inline
+#endif
+#endif // !MO_FORCEINLINE
+
+#ifndef MO_NOINLINE
+#if (_MSC_VER >= 1300)
+#define MO_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined (__clang__)
+#define MO_NOINLINE __attribute__((noinline))
+#else
+#define MO_NOINLINE
+#endif
+#endif // !MO_NOINLINE
 
 #ifndef MO_ANYSIZE_ARRAY
 #define MO_ANYSIZE_ARRAY 1
