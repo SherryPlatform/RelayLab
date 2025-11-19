@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="RelayLab.Tools/RelayLab.Tools.vcxproj" Id="e5e2c05a-f64d-4be3-a332-ace688f9e33a">
+    <Deploy />
+  </Project>
+</Solution>
