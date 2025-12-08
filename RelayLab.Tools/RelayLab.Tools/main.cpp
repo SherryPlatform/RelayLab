@@ -792,6 +792,149 @@ namespace
             65536);
         std::printf("RlHvMountHcsPlan9Share returns %d\n", Result);
     }
+
+    std::string GuidToString(
+        _In_ CONST MO_GUID* Guid)
+    {
+        if (!Guid)
+        {
+            return "(Invalid GUID)";
+        }
+        return Mile::FormatString(
+            "%08x-%04hx-%04hx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
+            Guid->Data1,
+            Guid->Data2,
+            Guid->Data3,
+            Guid->Data4[0],
+            Guid->Data4[1],
+            Guid->Data4[2],
+            Guid->Data4[3],
+            Guid->Data4[4],
+            Guid->Data4[5],
+            Guid->Data4[6],
+            Guid->Data4[7]);
+    }
+
+    struct HvUioDevice
+    {
+    public:
+
+        static void Register(
+            _In_ CONST MO_GUID* ClassId)
+        {
+            int ErrorCode = ::RlHvUioRegisterDevice(ClassId);
+            if (0 != ErrorCode)
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioRegisterDevice(%s) failed with error code %d",
+                    ::GuidToString(ClassId).c_str(),
+                    ErrorCode));
+            }
+        }
+
+    private:
+
+        RL_HV_UIO_DEVICE m_Instance = {};
+
+    public:
+
+        HvUioDevice(
+            _In_ CONST MO_GUID* InstanceId)
+        {
+            int ErrorCode = ::RlHvUioOpenDevice(
+                &this->m_Instance,
+                InstanceId);
+            if (0 != ErrorCode)
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioOpenDevice failed with error code %d",
+                    ErrorCode));
+            }
+        }
+
+        ~HvUioDevice()
+        {
+            ::RlHvUioCloseDevice(&this->m_Instance);
+        }
+
+        bool Transmit(
+            _In_opt_ MO_CONSTANT_POINTER Buffer,
+            _In_ MO_UINT32 NumberOfBytesToTransmit)
+        {
+            int ErrorCode = ::RlHvUioTransmit(
+                &this->m_Instance,
+                Buffer,
+                NumberOfBytesToTransmit);
+            if (0 == ErrorCode)
+            {
+                return true;
+            }
+            else if (EAGAIN == ErrorCode)
+            {
+                return false;
+            }
+            else
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioTransmit failed with error code %d",
+                    ErrorCode));
+            }
+        }
+
+        bool Receive(
+            _Out_ MO_POINTER Buffer,
+            _In_ MO_UINT32 NumberOfBytesToReceive,
+            _Out_ PMO_UINT32 NumberOfBytesReceived)
+        {
+            int ErrorCode = ::RlHvUioReceive(
+                &this->m_Instance,
+                Buffer,
+                NumberOfBytesToReceive,
+                NumberOfBytesReceived);
+            if (0 == ErrorCode)
+            {
+                return true;
+            }
+            else if (EAGAIN == ErrorCode)
+            {
+                return false;
+            }
+            else
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioReceive failed with error code %d",
+                    ErrorCode));
+            }
+        }
+
+        void SetInterruptState(
+            _In_ MO_BOOL InterruptState)
+        {
+            int ErrorCode = ::RlHvUioSetInterruptState(
+                &this->m_Instance,
+                InterruptState);
+            if (0 != ErrorCode)
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioSetInterruptState failed with error code %d",
+                    ErrorCode));
+            }
+        }
+
+        void WaitInterrupt(
+            _Out_ PMO_UINT32 InterruptCount)
+        {
+            int ErrorCode = ::RlHvUioWaitInterrupt(
+                &this->m_Instance,
+                InterruptCount);
+            if (0 != ErrorCode)
+            {
+                throw std::runtime_error(Mile::FormatString(
+                    "RlHvUioWaitInterrupt failed with error code %d",
+                    ErrorCode));
+            }
+        }
+    };
 }
 
 int main()
