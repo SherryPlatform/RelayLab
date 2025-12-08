@@ -321,14 +321,16 @@ EXTERN_C VOID MOAPI RlHvUioCloseDevice(
 {
     if (Instance)
     {
-        if (MAP_FAILED != Instance->OutgoingControl)
+        if (MAP_FAILED != Instance->OutgoingControl && 
+            Instance->OutgoingControl)
         {
             ::munmap(
                 Instance->OutgoingControl,
                 Instance->RingBufferSize * 2);
         }
 
-        if (-1 != Instance->FileDescriptor)
+        if (-1 != Instance->FileDescriptor &&
+            Instance->FileDescriptor)
         {
             ::close(Instance->FileDescriptor);
         }
