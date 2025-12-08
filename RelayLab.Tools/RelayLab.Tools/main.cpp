@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
@@ -935,11 +936,214 @@ namespace
             }
         }
     };
+
+    void SynthRdpProxyWorker(
+        HvUioDevice& DataDevice)
+    {
+        sockaddr_in SocketAddress = {};
+        SocketAddress.sin_family = AF_INET;
+        SocketAddress.sin_port = ::htons(3389);
+        SocketAddress.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+
+        int SocketFileDescriptor = ::socket(
+            SocketAddress.sin_family,
+            SOCK_STREAM | SOCK_NONBLOCK,
+            0);
+        if (-1 == SocketFileDescriptor)
+        {
+            throw std::runtime_error("Failed to create socket");
+        }
+        auto Handler = Mile::ScopeExitTaskHandler([&]()
+        {
+            if (-1 != SocketFileDescriptor)
+            {
+                ::close(SocketFileDescriptor);
+            }
+        });
+
+        if (0 != ::connect(
+            SocketFileDescriptor,
+            reinterpret_cast<sockaddr*>(&SocketAddress),
+            sizeof(SocketAddress)) &&
+            EINPROGRESS != errno)
+        {
+            throw std::runtime_error("Failed to connect to localhost:3389");
+        }
+
+        std::uint8_t ReceiveBuffer[16384] = {};
+        std::uint8_t TransmitBuffer[16384] = {};
+
+        for (;;)
+        {
+            std::memset(ReceiveBuffer, 0, sizeof(ReceiveBuffer));
+            ssize_t ReceivedBytes = ::recv(
+                SocketFileDescriptor,
+                ReceiveBuffer,
+                sizeof(ReceiveBuffer),
+                0);
+            if (ReceivedBytes > 0)
+            {
+                for (;;)
+                {
+                    bool Success = DataDevice.Transmit(
+                        ReceiveBuffer,
+                        static_cast<MO_UINT32>(ReceivedBytes));
+                    if (Success)
+                    {
+                        DataDevice.SetInterruptState(MO_TRUE);
+                        ::usleep(10 * 1000);
+                        break;
+                    }
+                    else
+                    {
+                        ::usleep(50 * 1000);
+                    }
+                }
+            }
+
+            MO_UINT32 BytesReceived = 0;
+            if (DataDevice.Receive(
+                TransmitBuffer,
+                sizeof(TransmitBuffer),
+                &BytesReceived))
+            {
+                MO_UINT32 TotalSentBytes = 0;
+                while (TotalSentBytes < BytesReceived)
+                {
+                    ssize_t SentBytes = ::send(
+                        SocketFileDescriptor,
+                        TransmitBuffer + TotalSentBytes,
+                        BytesReceived - TotalSentBytes,
+                        0);
+                    if (SentBytes > 0)
+                    {
+                        TotalSentBytes += static_cast<MO_UINT32>(SentBytes);
+                    }
+                    else if (0 == SentBytes &&
+                             (EAGAIN == errno || EWOULDBLOCK == errno))
+                    {
+                        ::usleep(50 * 1000);
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Failed to send data to socket");
+                    }
+                }
+            }
+
+        }
+    }
+
+    void StartSynthRdpProxy()
+    {
+        HvUioDevice::Register(&SYNTHRDP_CONTROL_CLASS_ID);
+        HvUioDevice::Register(&SYNTHRDP_DATA_CLASS_ID);
+
+        HvUioDevice ControlDevice(&SYNTHRDP_CONTROL_INSTANCE_ID);   
+
+        SYNTHRDP_VERSION_REQUEST_MESSAGE VersionRequest = {};
+        VersionRequest.Header.Type = SynthrdpVersionRequest;
+        VersionRequest.Header.Size = sizeof(VersionRequest);
+        VersionRequest.Version.AsDWORD = SYNTHRDP_VERSION_WINBLUE;
+        VersionRequest.Reserved = 0;
+        if (!ControlDevice.Transmit(
+            &VersionRequest,
+            sizeof(VersionRequest)))
+        {
+            throw std::runtime_error("SynthRdpVersionRequest Failed");
+        }
+        ControlDevice.SetInterruptState(MO_TRUE);
+       
+        SYNTHRDP_VERSION_RESPONSE_MESSAGE VersionResponse = {};
+        MO_UINT32 BytesReceived = 0;
+        for (;;)
+        {
+            if (ControlDevice.Receive(
+                &VersionResponse,
+                sizeof(VersionResponse),
+                &BytesReceived))
+            {
+                break;
+            }
+            else
+            {
+                MO_UINT32 InterruptCount = 0;
+                ControlDevice.WaitInterrupt(&InterruptCount);
+            }
+        }
+        if (sizeof(VersionResponse) != BytesReceived ||
+            VersionResponse.Header.Type != SynthrdpVersionResponse ||
+            SYNTHRDP_TRUE_WITH_VERSION_EXCHANGE != VersionResponse.IsAccepted)
+        {
+            throw std::runtime_error("SynthRdpVersionResponse Invalid");
+        }
+
+        std::printf("SynthRdp Service Initialized\n");
+
+        MO_GUID Instances[] =
+        {
+            SYNTHRDP_DATA_INSTANCE_ID_1,
+            SYNTHRDP_DATA_INSTANCE_ID_2,
+            SYNTHRDP_DATA_INSTANCE_ID_3,
+            SYNTHRDP_DATA_INSTANCE_ID_4,
+            SYNTHRDP_DATA_INSTANCE_ID_5
+        };
+        const MO_UINT32 InstanceCount = sizeof(Instances) / sizeof(*Instances);
+        bool ConnectedBefore = false;
+        bool PrintWaitForConnection = true;
+        for (MO_UINT32 i = 0; ; ++i)
+        {
+            if (PrintWaitForConnection)
+            {
+                std::printf("Waiting for connection.");
+                PrintWaitForConnection = false;
+            }
+
+            try
+            {
+                HvUioDevice DataDevice(&Instances[i % InstanceCount]);
+                std::printf("\n");
+                ConnectedBefore = true;
+                std::printf(
+                    "SynthRdp Data Channel %s Established\n",
+                    ::GuidToString(&Instances[i % InstanceCount]).c_str());
+
+                ::SynthRdpProxyWorker(DataDevice);
+            }
+            catch (std::exception const& ex)
+            {
+                if (ConnectedBefore)
+                {
+                    ConnectedBefore = false;
+                    PrintWaitForConnection = true;
+                    std::fprintf(stderr, "[Exception][Worker] %s\n", ex.what());
+                }
+                else
+                {
+                    std::printf(".");
+                }
+                ::usleep(50 * 1000);
+                continue;
+            }
+        }
+    }
 }
 
 int main()
 {
+    ::setbuf(stdout, nullptr);
+
     ::MountGpuDriversShares();
+
+    try
+    {
+        ::StartSynthRdpProxy();
+    }
+    catch (std::exception const& ex)
+    {
+        std::fprintf(stderr, "[Exception] %s\n", ex.what());
+        return EIO;
+    }
 
     return 0;
 }
