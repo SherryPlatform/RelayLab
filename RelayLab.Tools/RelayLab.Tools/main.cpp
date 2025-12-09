@@ -932,7 +932,7 @@ namespace
             int ErrorCode = ::RlHvUioWaitInterrupt(
                 &this->m_Instance,
                 InterruptCount);
-            if (0 != ErrorCode)
+            if (0 != ErrorCode && EINTR != ErrorCode && EAGAIN != ErrorCode)
             {
                 throw std::runtime_error(Mile::FormatString(
                     "RlHvUioWaitInterrupt failed with error code %d",
