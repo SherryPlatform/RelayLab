@@ -541,12 +541,14 @@ EXTERN_C int MOAPI RlHvUioReceive(
         return EAGAIN;
     }
 
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
+
     MO_UINT32 FirstReadSize = AvailableSize;
     MO_UINT32 SecondReadSize = 0;
-    if (Instance->IncomingControl->In < Instance->IncomingControl->Out)
+    if (Instance->IncomingControl->In < PreviousOut)
     {
-        MO_UINT32 FragileSize =
-            Instance->DataMaximumSize - Instance->IncomingControl->Out;
+        MO_UINT32 FragileSize = Instance->DataMaximumSize - PreviousOut;
         if (FragileSize < AvailableSize)
         {
             FirstReadSize = FragileSize;
@@ -555,10 +557,13 @@ EXTERN_C int MOAPI RlHvUioReceive(
     }
 
     std::vector<MO_UINT8> AvailableBytes(AvailableSize);
-    std::memcpy(
-        &AvailableBytes[0],
-        Instance->IncomingData + Instance->IncomingControl->Out,
-        FirstReadSize);
+    if (FirstReadSize)
+    {
+        std::memcpy(
+            &AvailableBytes[0],
+            Instance->IncomingData + PreviousOut,
+            FirstReadSize);
+    }
     if (SecondReadSize)
     {
         std::memcpy(
@@ -619,19 +624,12 @@ EXTERN_C int MOAPI RlHvUioReceive(
         return EIO;
     }
 
-    MO_UINT32 FinalOffset = Instance->IncomingControl->Out + ActualPacketSize;
-    if (Instance->IncomingControl->In < Instance->IncomingControl->Out)
+    MO_UINT32 FinalOffset = PreviousOut + ActualPacketSize;
+    if (FinalOffset >= Instance->DataMaximumSize)
     {
-        MO_UINT32 FragileSize =
-            Instance->DataMaximumSize - Instance->IncomingControl->Out;
-        if (FragileSize < ActualPacketSize)
-        {
-            FinalOffset = ActualPacketSize - FragileSize;
-        }
+        FinalOffset -= Instance->DataMaximumSize;
     }
 
-    std::atomic_signal_fence(std::memory_order_acq_rel);
-    MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
     std::atomic_ref<MO_UINT32> AtomicOut(Instance->IncomingControl->Out);
     while (!AtomicOut.compare_exchange_weak(
         PreviousOut,
@@ -706,12 +704,14 @@ EXTERN_C int MOAPI RlHvUioTransmit(
         return EAGAIN;
     }
 
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
+
     MO_UINT32 FirstWriteSize = PacketSize;
     MO_UINT32 SecondWriteSize = 0;
-    if (Instance->OutgoingControl->In >= Instance->OutgoingControl->Out)
+    if (PreviousIn >= Instance->OutgoingControl->Out)
     {
-        MO_UINT32 FragileSize =
-            Instance->DataMaximumSize - Instance->OutgoingControl->In;
+        MO_UINT32 FragileSize = Instance->DataMaximumSize - PreviousIn;
         if (FragileSize < PacketSize)
         {
             FirstWriteSize = FragileSize;
@@ -719,10 +719,13 @@ EXTERN_C int MOAPI RlHvUioTransmit(
         }
     }
 
-    std::memcpy(
-        Instance->OutgoingData + Instance->OutgoingControl->In,
-        &PacketBytes[0],
-        FirstWriteSize);
+    if (FirstWriteSize)
+    {
+        std::memcpy(
+            Instance->OutgoingData + PreviousIn,
+            &PacketBytes[0],
+            FirstWriteSize);
+    }
     if (SecondWriteSize)
     {
         std::memcpy(
@@ -731,12 +734,12 @@ EXTERN_C int MOAPI RlHvUioTransmit(
             SecondWriteSize);
     }
 
-    MO_UINT32 FinalOffset = SecondWriteSize > 0
-        ? SecondWriteSize
-        : Instance->OutgoingControl->In + FirstWriteSize;
+    MO_UINT32 FinalOffset = PreviousIn + PacketSize;
+    if (FinalOffset >= Instance->DataMaximumSize)
+    {
+        FinalOffset -= Instance->DataMaximumSize;
+    }
 
-    std::atomic_signal_fence(std::memory_order_acq_rel);
-    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
     std::atomic_ref<MO_UINT32> AtomicIn(Instance->OutgoingControl->In);
     while (!AtomicIn.compare_exchange_weak(
         PreviousIn,
