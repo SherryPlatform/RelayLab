@@ -322,7 +322,7 @@ EXTERN_C VOID MOAPI RlHvUioCloseDevice(
 {
     if (Instance)
     {
-        if (MAP_FAILED != Instance->OutgoingControl && 
+        if (MAP_FAILED != Instance->OutgoingControl &&
             Instance->OutgoingControl)
         {
             ::munmap(
@@ -384,11 +384,11 @@ EXTERN_C int MOAPI RlHvUioOpenDevice(
                 PMO_UINT8 OutgoingStart = MapStart;
                 PMO_UINT8 IncomingStart = MapStart + Instance->RingBufferSize;
 
-                Instance->OutgoingControl = 
+                Instance->OutgoingControl =
                     reinterpret_cast<PVMRCB>(OutgoingStart);
                 Instance->OutgoingData =
                     OutgoingStart + Instance->ControlMaximumSize;
-                Instance->IncomingControl = 
+                Instance->IncomingControl =
                     reinterpret_cast<PVMRCB>(IncomingStart);
                 Instance->IncomingData =
                     IncomingStart + Instance->ControlMaximumSize;
@@ -951,7 +951,7 @@ namespace
 
         int SocketFileDescriptor = ::socket(
             SocketAddress.sin_family,
-            SOCK_STREAM | SOCK_NONBLOCK,
+            SOCK_STREAM,
             0);
         if (-1 == SocketFileDescriptor)
         {
@@ -979,12 +979,41 @@ namespace
 
         for (;;)
         {
-            std::memset(ReceiveBuffer, 0, sizeof(ReceiveBuffer));
+            MO_UINT32 BytesReceived = 0;
+            if (DataDevice.Receive(
+                TransmitBuffer,
+                sizeof(TransmitBuffer),
+                &BytesReceived))
+            {
+                for (;;)
+                {
+                    ssize_t SentBytes = ::send(
+                        SocketFileDescriptor,
+                        TransmitBuffer,
+                        BytesReceived,
+                        0);
+                    if (SentBytes > 0)
+                    {
+                        break;
+                    }
+
+                    if (0 == SentBytes &&
+                        (EAGAIN == errno || EWOULDBLOCK == errno))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Failed to send data to socket");
+                    }
+                }
+            }
+
             ssize_t ReceivedBytes = ::recv(
                 SocketFileDescriptor,
                 ReceiveBuffer,
                 sizeof(ReceiveBuffer),
-                0);
+                MSG_DONTWAIT);
             if (ReceivedBytes > 0)
             {
                 for (;;)
@@ -995,46 +1024,10 @@ namespace
                     if (Success)
                     {
                         DataDevice.SetInterruptState(MO_TRUE);
-                        ::usleep(10 * 1000);
                         break;
                     }
-                    else
-                    {
-                        ::usleep(50 * 1000);
-                    }
                 }
             }
-
-            MO_UINT32 BytesReceived = 0;
-            if (DataDevice.Receive(
-                TransmitBuffer,
-                sizeof(TransmitBuffer),
-                &BytesReceived))
-            {
-                MO_UINT32 TotalSentBytes = 0;
-                while (TotalSentBytes < BytesReceived)
-                {
-                    ssize_t SentBytes = ::send(
-                        SocketFileDescriptor,
-                        TransmitBuffer + TotalSentBytes,
-                        BytesReceived - TotalSentBytes,
-                        0);
-                    if (SentBytes > 0)
-                    {
-                        TotalSentBytes += static_cast<MO_UINT32>(SentBytes);
-                    }
-                    else if (0 == SentBytes &&
-                             (EAGAIN == errno || EWOULDBLOCK == errno))
-                    {
-                        ::usleep(50 * 1000);
-                    }
-                    else
-                    {
-                        throw std::runtime_error("Failed to send data to socket");
-                    }
-                }
-            }
-
         }
     }
 
@@ -1043,7 +1036,7 @@ namespace
         HvUioDevice::Register(&SYNTHRDP_CONTROL_CLASS_ID);
         HvUioDevice::Register(&SYNTHRDP_DATA_CLASS_ID);
 
-        HvUioDevice ControlDevice(&SYNTHRDP_CONTROL_INSTANCE_ID);   
+        HvUioDevice ControlDevice(&SYNTHRDP_CONTROL_INSTANCE_ID);
 
         SYNTHRDP_VERSION_REQUEST_MESSAGE VersionRequest = {};
         VersionRequest.Header.Type = SynthrdpVersionRequest;
@@ -1057,7 +1050,7 @@ namespace
             throw std::runtime_error("SynthRdpVersionRequest Failed");
         }
         ControlDevice.SetInterruptState(MO_TRUE);
-       
+
         SYNTHRDP_VERSION_RESPONSE_MESSAGE VersionResponse = {};
         MO_UINT32 BytesReceived = 0;
         for (;;)
