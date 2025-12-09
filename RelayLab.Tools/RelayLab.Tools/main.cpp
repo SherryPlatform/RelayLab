@@ -977,6 +977,42 @@ namespace
         std::uint8_t ReceiveBuffer[16384] = {};
         std::uint8_t TransmitBuffer[16384] = {};
 
+        // X.224 Connection Request PDU (Patched)
+        {
+            MO_UINT32 BytesReceived = 0;
+            if (DataDevice.Receive(
+                TransmitBuffer,
+                sizeof(TransmitBuffer),
+                &BytesReceived))
+            {
+                // Set requestedProtocols to PROTOCOL_RDP (0x00000000).
+                TransmitBuffer[15] = 0x00;
+
+                for (;;)
+                {
+                    ssize_t SentBytes = ::send(
+                        SocketFileDescriptor,
+                        TransmitBuffer,
+                        BytesReceived,
+                        0);
+                    if (SentBytes > 0)
+                    {
+                        break;
+                    }
+
+                    if (0 == SentBytes &&
+                        (EAGAIN == errno || EWOULDBLOCK == errno))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Failed to send data to socket");
+                    }
+                }
+            }
+        }
+
         for (;;)
         {
             MO_UINT32 BytesReceived = 0;
