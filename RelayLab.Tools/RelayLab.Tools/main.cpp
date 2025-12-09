@@ -441,10 +441,11 @@ EXTERN_C int MOAPI RlHvUioWaitInterrupt(
         return EINVAL;
     }
 
-    return (sizeof(*InterruptCount) == ::read(
+    return (sizeof(*InterruptCount) == ::pread(
         Instance->FileDescriptor,
         InterruptCount,
-        sizeof(*InterruptCount)))
+        sizeof(*InterruptCount),
+        0))
         ? 0
         : errno;
 }
