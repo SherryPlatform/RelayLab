@@ -752,6 +752,12 @@ EXTERN_C int MOAPI RlHvUioTransmit(
 #endif
     }
 
+    if (!Instance->OutgoingControl->InterruptMask &&
+        PreviousIn == PreviousOut)
+    {
+        ::RlHvUioSetInterruptState(Instance, MO_TRUE);
+    }
+
     return 0;
 }
 
@@ -910,20 +916,6 @@ namespace
             }
         }
 
-        void SetInterruptState(
-            _In_ MO_BOOL InterruptState)
-        {
-            int ErrorCode = ::RlHvUioSetInterruptState(
-                &this->m_Instance,
-                InterruptState);
-            if (0 != ErrorCode)
-            {
-                throw std::runtime_error(Mile::FormatString(
-                    "RlHvUioSetInterruptState failed with error code %d",
-                    ErrorCode));
-            }
-        }
-
         void WaitInterrupt(
             _Out_ PMO_UINT32 InterruptCount)
         {
@@ -1057,7 +1049,6 @@ namespace
                         static_cast<MO_UINT32>(ReceivedBytes));
                     if (Success)
                     {
-                        DataDevice.SetInterruptState(MO_TRUE);
                         break;
                     }
                 }
@@ -1088,7 +1079,6 @@ namespace
         {
             throw std::runtime_error("SynthRdpVersionRequest Failed");
         }
-        ControlDevice.SetInterruptState(MO_TRUE);
 
         SYNTHRDP_VERSION_RESPONSE_MESSAGE VersionResponse = {};
         MO_UINT32 BytesReceived = 0;
