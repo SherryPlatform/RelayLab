@@ -1064,6 +1064,11 @@ namespace
                     }
                 }
             }
+            else if (0 == ReceivedBytes)
+            {
+                // Break out the loop if the socket is closed.
+                break;
+            }
         }
     }
 
