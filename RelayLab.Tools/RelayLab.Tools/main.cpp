@@ -958,8 +958,7 @@ namespace
         if (0 != ::connect(
             SocketFileDescriptor,
             reinterpret_cast<sockaddr*>(&SocketAddress),
-            sizeof(SocketAddress)) &&
-            EINPROGRESS != errno)
+            sizeof(SocketAddress)))
         {
             throw std::runtime_error("Failed to connect to localhost:3389");
         }
