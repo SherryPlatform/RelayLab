@@ -38,9 +38,6 @@
       <CppAdditionalWarning>%(AdditionalWarnings);%(CppAdditionalWarning)</CppAdditionalWarning>
       <CppLanguageStandard>c++20</CppLanguageStandard>
     </ClCompile>
-    <Link>
-      <AdditionalOptions>--static %(AdditionalOptions)</AdditionalOptions>
-    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Mile.HyperV\Mile.HyperV.Guest.Interface.h" />
