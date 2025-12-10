@@ -453,28 +453,26 @@ namespace
     static void GetAvailableSizeInformation(
         _Out_opt_ PMO_UINT32 AvailableReceiveSize,
         _Out_opt_ PMO_UINT32 AvailableTransmitSize,
-        _In_ PVMRCB RingControl,
+        _In_ MO_UINT32 RingControlIn,
+        _In_ MO_UINT32 RingControlOut,
         _In_ MO_UINT32 DataMaximumSize)
     {
         MO_UINT32 AvailableReceiveSizeResult = 0;
         MO_UINT32 AvailableTransmitSizeResult = 0;
 
-        if (RingControl)
+        if (RingControlIn >= RingControlOut)
         {
-            if (RingControl->In >= RingControl->Out)
-            {
-                AvailableReceiveSizeResult =
-                    RingControl->In - RingControl->Out;
-                AvailableTransmitSizeResult =
-                    DataMaximumSize - AvailableReceiveSizeResult;
-            }
-            else
-            {
-                AvailableTransmitSizeResult =
-                    RingControl->Out - RingControl->In;
-                AvailableReceiveSizeResult =
-                    DataMaximumSize - AvailableTransmitSizeResult;
-            }
+            AvailableReceiveSizeResult =
+                RingControlIn - RingControlOut;
+            AvailableTransmitSizeResult =
+                DataMaximumSize - AvailableReceiveSizeResult;
+        }
+        else
+        {
+            AvailableTransmitSizeResult =
+                RingControlOut - RingControlIn;
+            AvailableReceiveSizeResult =
+                DataMaximumSize - AvailableTransmitSizeResult;
         }
 
         if (AvailableReceiveSize)
@@ -528,23 +526,25 @@ EXTERN_C int MOAPI RlHvUioReceive(
     }
     *NumberOfBytesReceived = 0;
 
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousIn = Instance->IncomingControl->In;
+    MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
+
     MO_UINT32 AvailableSize = 0;
     ::GetAvailableSizeInformation(
         &AvailableSize,
         nullptr,
-        Instance->IncomingControl,
+        PreviousIn,
+        PreviousOut,
         Instance->DataMaximumSize);
     if (AvailableSize < RL_HV_UIO_PIPE_PACKET_HEADER_SIZE)
     {
         return EAGAIN;
     }
 
-    std::atomic_signal_fence(std::memory_order_acq_rel);
-    MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
-
     MO_UINT32 FirstReadSize = AvailableSize;
     MO_UINT32 SecondReadSize = 0;
-    if (Instance->IncomingControl->In < PreviousOut)
+    if (PreviousIn < PreviousOut)
     {
         MO_UINT32 FragileSize = Instance->DataMaximumSize - PreviousOut;
         if (FragileSize < AvailableSize)
@@ -691,23 +691,25 @@ EXTERN_C int MOAPI RlHvUioTransmit(
         &Instance->OutgoingControl->In,
         sizeof(MO_UINT64));
 
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
+    MO_UINT32 PreviousOut = Instance->OutgoingControl->Out;
+
     MO_UINT32 AvailableSize = 0;
     ::GetAvailableSizeInformation(
         nullptr,
         &AvailableSize,
-        Instance->OutgoingControl,
+        PreviousIn,
+        PreviousOut,
         Instance->DataMaximumSize);
     if (AvailableSize < PacketSize)
     {
         return EAGAIN;
     }
 
-    std::atomic_signal_fence(std::memory_order_acq_rel);
-    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
-
     MO_UINT32 FirstWriteSize = PacketSize;
     MO_UINT32 SecondWriteSize = 0;
-    if (PreviousIn >= Instance->OutgoingControl->Out)
+    if (PreviousIn >= PreviousOut)
     {
         MO_UINT32 FragileSize = Instance->DataMaximumSize - PreviousIn;
         if (FragileSize < PacketSize)
