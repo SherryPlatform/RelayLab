@@ -526,7 +526,7 @@ EXTERN_C int MOAPI RlHvUioReceive(
     }
     *NumberOfBytesReceived = 0;
 
-    std::atomic_signal_fence(std::memory_order_acq_rel);
+    std::atomic_thread_fence(std::memory_order_seq_cst);
     MO_UINT32 PreviousIn = Instance->IncomingControl->In;
     MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
 
@@ -628,19 +628,8 @@ EXTERN_C int MOAPI RlHvUioReceive(
         FinalOffset -= Instance->DataMaximumSize;
     }
 
-    std::atomic_ref<MO_UINT32> AtomicOut(Instance->IncomingControl->Out);
-    while (!AtomicOut.compare_exchange_weak(
-        PreviousOut,
-        FinalOffset,
-        std::memory_order_acq_rel,
-        std::memory_order_acquire))
-    {
-#if defined(__i386__) || defined(__x86_64__)
-        asm volatile("pause" ::: "memory");
-#elif defined(__aarch64__)
-        asm volatile("yield" ::: "memory");
-#endif
-    }
+    Instance->IncomingControl->Out = FinalOffset;
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     return 0;
 }
@@ -654,6 +643,10 @@ EXTERN_C int MOAPI RlHvUioTransmit(
     {
         return EINVAL;
     }
+
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
+    MO_UINT32 PreviousOut = Instance->OutgoingControl->Out;
 
     VMPACKET_DESCRIPTOR Descriptor = {};
     Descriptor.Type = VmbusPacketTypeDataInBand;
@@ -688,12 +681,8 @@ EXTERN_C int MOAPI RlHvUioTransmit(
         NumberOfBytesToTransmit);
     std::memcpy(
         &PacketBytes[PacketSize - sizeof(MO_UINT64)],
-        &Instance->OutgoingControl->In,
-        sizeof(MO_UINT64));
-
-    std::atomic_signal_fence(std::memory_order_acq_rel);
-    MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
-    MO_UINT32 PreviousOut = Instance->OutgoingControl->Out;
+        &PreviousIn,
+        sizeof(MO_UINT32));
 
     MO_UINT32 AvailableSize = 0;
     ::GetAvailableSizeInformation(
@@ -740,24 +729,17 @@ EXTERN_C int MOAPI RlHvUioTransmit(
         FinalOffset -= Instance->DataMaximumSize;
     }
 
-    std::atomic_ref<MO_UINT32> AtomicIn(Instance->OutgoingControl->In);
-    while (!AtomicIn.compare_exchange_weak(
-        PreviousIn,
-        FinalOffset,
-        std::memory_order_acq_rel,
-        std::memory_order_acquire))
-    {
-#if defined(__i386__) || defined(__x86_64__)
-        asm volatile("pause" ::: "memory");
-#elif defined(__aarch64__)
-        asm volatile("yield" ::: "memory");
-#endif
-    }
+    Instance->OutgoingControl->In = FinalOffset;
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     if (!Instance->OutgoingControl->InterruptMask &&
         PreviousIn == PreviousOut)
     {
-        ::RlHvUioSetInterruptState(Instance, MO_TRUE);
+        int ErrorCode = ::RlHvUioSetInterruptState(Instance, MO_TRUE);
+        if (0 != ErrorCode)
+        {
+            return ErrorCode;
+        }
     }
 
     return 0;
@@ -1001,6 +983,33 @@ namespace
                         throw std::runtime_error("Failed to send data to socket");
                     }
                 }
+            }
+        }
+
+        // X.224 Connection Confirm PDU (Patched)
+        {
+            ssize_t ReceivedBytes = ::recv(
+                SocketFileDescriptor,
+                ReceiveBuffer,
+                sizeof(ReceiveBuffer),
+                0);
+            if (ReceivedBytes > 0)
+            {
+                for (;;)
+                {
+                    bool Success = DataDevice.Transmit(
+                        ReceiveBuffer,
+                        static_cast<MO_UINT32>(ReceivedBytes));
+                    if (Success)
+                    {
+                        break;
+                    }
+                }
+            }
+            else if (0 == ReceivedBytes)
+            {
+                // Break out the loop if the socket is closed.
+                return;
             }
         }
 
