@@ -114,13 +114,19 @@ sudo apt install --no-install-recommends --no-install-suggests firefox
 
 ### Fix X.Org issue when GPU-PV is enabled
 
+> [!IMPORTANT]  
+> Use the following command will override the /etc/X11/xorg.conf, it's OK for
+> this document because original Xubuntu 24.04 Minimal doesn't have this file
+> existed. If you want to use this trick into other distros, you may need to add
+> configuration to /etc/X11/xorg.conf by manually edited.
+
 ```
 echo '
 Section "Device"
     Identifier "Display 0"
     Driver "fbdev"
 EndSection
-' | sudo tee /etc/X11/xorg.conf.d/10-vmbus-synthvid.conf
+' | sudo tee /etc/X11/xorg.conf
 ```
 
 ## Remove unnecessary X.Org drivers
