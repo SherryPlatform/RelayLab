@@ -1013,6 +1013,7 @@ namespace
             }
         }
 
+        bool NotResponded = true;
         for (;;)
         {
             MO_UINT32 BytesReceived = 0;
@@ -1021,6 +1022,7 @@ namespace
                 sizeof(TransmitBuffer),
                 &BytesReceived))
             {
+                NotResponded = false;
                 for (;;)
                 {
                     ssize_t SentBytes = ::send(
@@ -1052,6 +1054,7 @@ namespace
                 MSG_DONTWAIT);
             if (ReceivedBytes > 0)
             {
+                NotResponded = false;
                 for (;;)
                 {
                     bool Success = DataDevice.Transmit(
@@ -1067,6 +1070,12 @@ namespace
             {
                 // Break out the loop if the socket is closed.
                 break;
+            }
+
+            if (NotResponded)
+            {
+                MO_UINT32 InterruptCount = 0;
+                DataDevice.WaitInterrupt(&InterruptCount);
             }
         }
     }
