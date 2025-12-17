@@ -7,8 +7,7 @@ Configurations for Mainline Linux Kernel used in RelayLab.
 Currently RelayLab uses Linux Kernel 6.12 series, and the Linux Kernel
 configurations is based on these Debian packages:
 
-- https://mirrors.tuna.tsinghua.edu.cn/debian/pool/main/l/linux/linux-headers-6.12.37+deb13-cloud-amd64_6.12.37-1_amd64.deb
-- https://mirrors.tuna.tsinghua.edu.cn/debian/pool/main/l/linux-signed-amd64/linux-image-6.12.37+deb13-cloud-amd64_6.12.37-1_amd64.deb
+- https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.22/main/x86_64/linux-virt-6.12.40-r0.apk
 
 ## Flavors
 
