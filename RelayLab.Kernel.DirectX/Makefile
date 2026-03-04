@@ -7,7 +7,7 @@ PWD :=$(shell pwd)
 default:
 	$(MAKE) -C $(KERNELDIR)  M=$(PWD) modules
 clean:
-	rm -rf .tmp_versions Module.symvers *.mod.c *.o *.ko .*.cmd Module.markers modules.order
+	rm -rf .tmp_versions Module.symvers *.mod *.mod.c .*.o *.o *.ko .*.cmd Module.markers modules.order
 load:
 	/sbin/insmod dxgkrnl.ko
 unload:
