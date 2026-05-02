@@ -1,5 +1,4 @@
-﻿#define MILE_MOBILITY_ENABLE_MINIMUM_SAL
-#include <Mile.Mobility.Portable.Types.h>
+﻿#include <Mile.Mobility.Portable.Types.h>
 #include <Mile.HyperV.VMBus.h>
 #include <Mile.Helpers.CppBase.h>
 
@@ -20,12 +19,12 @@
 #include <filesystem>
 #include <span>
 
-EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
-    _In_ MO_UINT32 Port,
-    _In_ MO_CONSTANT_STRING AccessName,
-    _In_ MO_CONSTANT_STRING MountPoint,
-    _In_ MO_BOOL ReadOnly,
-    _In_ MO_UINT32 BufferSize)
+MO_EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
+    _Mo_In_ MO_UINT32 Port,
+    _Mo_In_ MO_CONSTANT_STRING AccessName,
+    _Mo_In_ MO_CONSTANT_STRING MountPoint,
+    _Mo_In_ MO_BOOL ReadOnly,
+    _Mo_In_ MO_UINT32 BufferSize)
 {
     int ErrorCode = 0;
 
@@ -83,8 +82,8 @@ EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
     return ErrorCode;
 }
 
-EXTERN_C int MOAPI RlHvUioRegisterDevice(
-    _In_ CONST MO_GUID* ClassId)
+MO_EXTERN_C int MOAPI RlHvUioRegisterDevice(
+    _Mo_In_ MO_CONST MO_GUID* ClassId)
 {
     if (!ClassId)
     {
@@ -163,9 +162,9 @@ typedef struct _RL_HV_UIO_DEVICE_INFOMATION
     RL_HV_UIO_MAP_ITEM MemoryMapItems[RL_HV_UIO_MAP_MAXIMUM];
 } RL_HV_UIO_DEVICE_INFOMATION, *PRL_HV_UIO_DEVICE_INFOMATION;
 
-EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
-    _Out_ PRL_HV_UIO_DEVICE_INFOMATION Information,
-    _In_ CONST MO_GUID* InstanceId)
+MO_EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
+    _Mo_Out_ PRL_HV_UIO_DEVICE_INFOMATION Information,
+    _Mo_In_ MO_CONST MO_GUID* InstanceId)
 {
     if (!Information || !InstanceId)
     {
@@ -315,8 +314,8 @@ typedef struct _RL_HV_UIO_DEVICE
     PMO_UINT8 IncomingData;
 } RL_HV_UIO_DEVICE, *PRL_HV_UIO_DEVICE;
 
-EXTERN_C VOID MOAPI RlHvUioCloseDevice(
-    _Inout_ PRL_HV_UIO_DEVICE Instance)
+MO_EXTERN_C MO_VOID MOAPI RlHvUioCloseDevice(
+    _Mo_InOut_ PRL_HV_UIO_DEVICE Instance)
 {
     if (Instance)
     {
@@ -338,9 +337,9 @@ EXTERN_C VOID MOAPI RlHvUioCloseDevice(
     }
 }
 
-EXTERN_C int MOAPI RlHvUioOpenDevice(
-    _Out_ PRL_HV_UIO_DEVICE Instance,
-    _In_ CONST MO_GUID* InstanceId)
+MO_EXTERN_C int MOAPI RlHvUioOpenDevice(
+    _Mo_Out_ PRL_HV_UIO_DEVICE Instance,
+    _Mo_In_ MO_CONST MO_GUID* InstanceId)
 {
     if (!Instance || !InstanceId)
     {
@@ -412,9 +411,9 @@ EXTERN_C int MOAPI RlHvUioOpenDevice(
     return ErrorCode;
 }
 
-EXTERN_C int MOAPI RlHvUioSetInterruptState(
-    _In_ PRL_HV_UIO_DEVICE Instance,
-    _In_ MO_BOOL InterruptState)
+MO_EXTERN_C int MOAPI RlHvUioSetInterruptState(
+    _Mo_In_ PRL_HV_UIO_DEVICE Instance,
+    _Mo_In_ MO_BOOL InterruptState)
 {
     if (!Instance)
     {
@@ -430,9 +429,9 @@ EXTERN_C int MOAPI RlHvUioSetInterruptState(
         : errno;
 }
 
-EXTERN_C int MOAPI RlHvUioWaitInterrupt(
-    _In_ PRL_HV_UIO_DEVICE Instance,
-    _Out_ PMO_UINT32 InterruptCount)
+MO_EXTERN_C int MOAPI RlHvUioWaitInterrupt(
+    _Mo_In_ PRL_HV_UIO_DEVICE Instance,
+    _Mo_Out_ PMO_UINT32 InterruptCount)
 {
     if (!Instance || !InterruptCount)
     {
@@ -451,11 +450,11 @@ EXTERN_C int MOAPI RlHvUioWaitInterrupt(
 namespace
 {
     static void GetAvailableSizeInformation(
-        _Out_opt_ PMO_UINT32 AvailableReceiveSize,
-        _Out_opt_ PMO_UINT32 AvailableTransmitSize,
-        _In_ MO_UINT32 RingControlIn,
-        _In_ MO_UINT32 RingControlOut,
-        _In_ MO_UINT32 DataMaximumSize)
+        _Mo_Out_Opt_ PMO_UINT32 AvailableReceiveSize,
+        _Mo_Out_Opt_ PMO_UINT32 AvailableTransmitSize,
+        _Mo_In_ MO_UINT32 RingControlIn,
+        _Mo_In_ MO_UINT32 RingControlOut,
+        _Mo_In_ MO_UINT32 DataMaximumSize)
     {
         MO_UINT32 AvailableReceiveSizeResult = 0;
         MO_UINT32 AvailableTransmitSizeResult = 0;
@@ -487,7 +486,7 @@ namespace
     }
 
     static bool PopBytesToStructure(
-        _Out_ void* Target,
+        _Mo_Out_ void* Target,
         std::span<std::uint8_t> const& Source,
         std::size_t const& Size)
     {
@@ -501,8 +500,8 @@ namespace
     }
 
     static MO_UINTN GetAlignedSize(
-        _In_ MO_UINTN Size,
-        _In_ MO_UINTN Alignment)
+        _Mo_In_ MO_UINTN Size,
+        _Mo_In_ MO_UINTN Alignment)
     {
         return (Size + Alignment - 1) & ~(Alignment - 1);
     }
@@ -511,11 +510,11 @@ namespace
 #define RL_HV_UIO_PIPE_PACKET_HEADER_SIZE \
     (sizeof(VMPACKET_DESCRIPTOR) + sizeof(VMPIPE_PROTOCOL_HEADER))
 
-EXTERN_C int MOAPI RlHvUioReceive(
-    _In_ PRL_HV_UIO_DEVICE Instance,
-    _Out_ MO_POINTER Buffer,
-    _In_ MO_UINT32 NumberOfBytesToReceive,
-    _Out_ PMO_UINT32 NumberOfBytesReceived)
+MO_EXTERN_C int MOAPI RlHvUioReceive(
+    _Mo_In_ PRL_HV_UIO_DEVICE Instance,
+    _Mo_Out_ MO_POINTER Buffer,
+    _Mo_In_ MO_UINT32 NumberOfBytesToReceive,
+    _Mo_Out_ PMO_UINT32 NumberOfBytesReceived)
 {
     if (!Instance ||
         !Buffer ||
@@ -634,10 +633,10 @@ EXTERN_C int MOAPI RlHvUioReceive(
     return 0;
 }
 
-EXTERN_C int MOAPI RlHvUioTransmit(
-    _In_ PRL_HV_UIO_DEVICE Instance,
-    _In_opt_ MO_CONSTANT_POINTER Buffer,
-    _In_ MO_UINT32 NumberOfBytesToTransmit)
+MO_EXTERN_C int MOAPI RlHvUioTransmit(
+    _Mo_In_ PRL_HV_UIO_DEVICE Instance,
+    _Mo_In_Opt_ MO_CONSTANT_POINTER Buffer,
+    _Mo_In_ MO_UINT32 NumberOfBytesToTransmit)
 {
     if (!Instance || !Buffer || !NumberOfBytesToTransmit)
     {
@@ -787,7 +786,7 @@ namespace
     }
 
     std::string GuidToString(
-        _In_ CONST MO_GUID* Guid)
+        _Mo_In_ MO_CONST MO_GUID* Guid)
     {
         if (!Guid)
         {
@@ -813,7 +812,7 @@ namespace
     public:
 
         static void Register(
-            _In_ CONST MO_GUID* ClassId)
+            _Mo_In_ MO_CONST MO_GUID* ClassId)
         {
             int ErrorCode = ::RlHvUioRegisterDevice(ClassId);
             if (0 != ErrorCode)
@@ -832,7 +831,7 @@ namespace
     public:
 
         HvUioDevice(
-            _In_ CONST MO_GUID* InstanceId)
+            _Mo_In_ MO_CONST MO_GUID* InstanceId)
         {
             int ErrorCode = ::RlHvUioOpenDevice(
                 &this->m_Instance,
@@ -851,8 +850,8 @@ namespace
         }
 
         bool Transmit(
-            _In_opt_ MO_CONSTANT_POINTER Buffer,
-            _In_ MO_UINT32 NumberOfBytesToTransmit)
+            _Mo_In_Opt_ MO_CONSTANT_POINTER Buffer,
+            _Mo_In_ MO_UINT32 NumberOfBytesToTransmit)
         {
             int ErrorCode = ::RlHvUioTransmit(
                 &this->m_Instance,
@@ -875,9 +874,9 @@ namespace
         }
 
         bool Receive(
-            _Out_ MO_POINTER Buffer,
-            _In_ MO_UINT32 NumberOfBytesToReceive,
-            _Out_ PMO_UINT32 NumberOfBytesReceived)
+            _Mo_Out_ MO_POINTER Buffer,
+            _Mo_In_ MO_UINT32 NumberOfBytesToReceive,
+            _Mo_Out_ PMO_UINT32 NumberOfBytesReceived)
         {
             int ErrorCode = ::RlHvUioReceive(
                 &this->m_Instance,
@@ -901,7 +900,7 @@ namespace
         }
 
         void WaitInterrupt(
-            _Out_ PMO_UINT32 InterruptCount)
+            _Mo_Out_ PMO_UINT32 InterruptCount)
         {
             int ErrorCode = ::RlHvUioWaitInterrupt(
                 &this->m_Instance,

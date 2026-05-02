@@ -13,7 +13,6 @@
 #ifndef MILE_POSIX_HELPERS_CPPBASE
 #define MILE_POSIX_HELPERS_CPPBASE
 
-#define MILE_MOBILITY_ENABLE_MINIMUM_SAL
 #include <Mile.Mobility.Portable.Types.h>
 
 #include <cstdint>
@@ -30,8 +29,8 @@ namespace Mile
      * @return A formatted string if successful, an empty string otherwise.
     */
     std::string VFormatString(
-        _In_ char const* const Format,
-        _In_ va_list ArgList);
+        _Mo_In_ char const* const Format,
+        _Mo_In_ va_list ArgList);
 
     /**
      * @brief Write formatted data to a onebyte or multibyte string, suggested
@@ -41,7 +40,7 @@ namespace Mile
      * @return A formatted string if successful, an empty string otherwise.
     */
     std::string FormatString(
-        _In_ char const* const Format,
+        _Mo_In_ char const* const Format,
         ...);
 
     /**

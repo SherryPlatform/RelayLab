@@ -13,8 +13,8 @@
 #include <cstdarg>
 
 std::string Mile::VFormatString(
-    _In_ char const* const Format,
-    _In_ va_list ArgList)
+    _Mo_In_ char const* const Format,
+    _Mo_In_ va_list ArgList)
 {
     int Length = 0;
 
@@ -55,7 +55,7 @@ std::string Mile::VFormatString(
 }
 
 std::string Mile::FormatString(
-    _In_ char const* const Format,
+    _Mo_In_ char const* const Format,
     ...)
 {
     va_list ArgList;
