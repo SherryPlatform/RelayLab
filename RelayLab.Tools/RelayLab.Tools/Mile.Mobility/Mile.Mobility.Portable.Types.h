@@ -11,67 +11,83 @@
 #ifndef MILE_MOBILITY_PORTABLE_TYPES
 #define MILE_MOBILITY_PORTABLE_TYPES
 
-#ifndef CONST
-#define CONST const
-#endif // !CONST
+/*
+ * - All types in this header file are C types with the C++ compatibility.
+ * - All mentioned type definitions are prefixed with "MO_", each of which may
+ *   have a corresponding pointer type definition prefixed with "PMO_".
+ * - All mentioned constant value definitions are prefixed with "MO_".
+ * - All mentioned Mile.Mobility specific macro definitions are prefixed with
+ *   "MO_", "_Mo_" or "MILE_MOBILITY_". "MOAPI" is intentionally reserved as
+ *   the API declaration tag.
+ */
 
-#ifndef VOID
-#define VOID void
-#endif // !VOID
+#ifndef MO_CONST
+#define MO_CONST const
+#endif /* !MO_CONST */
 
-#ifndef EXTERN_C
+#ifndef MO_VOID
+#define MO_VOID void
+#endif /* !MO_VOID */
+
+#ifndef MO_EXTERN_C
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
+#define MO_EXTERN_C extern "C"
 #else
-#define EXTERN_C extern
+#define MO_EXTERN_C extern
 #endif
+#endif /* !MO_EXTERN_C */
+
+#ifndef MO_NULL
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L) || \
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L)
+#define MO_NULL nullptr
+#elif defined(__cplusplus)
+#define MO_NULL 0
+#else
+#define MO_NULL ((MO_VOID*)0)
 #endif
+#endif /* !MO_NULL */
 
-#ifdef MILE_MOBILITY_ENABLE_MINIMUM_SAL
-#ifndef _In_
-#define _In_
-#endif // !_In_
+#ifndef _Mo_In_
+#define _Mo_In_
+#endif /* !_Mo_In_ */
 
-#ifndef _In_opt_
-#define _In_opt_
-#endif // !_In_opt_
+#ifndef _Mo_In_Opt_
+#define _Mo_In_Opt_
+#endif /* !_Mo_In_Opt_ */
 
-#ifndef _Out_
-#define _Out_
-#endif // !_Out_
+#ifndef _Mo_Out_
+#define _Mo_Out_
+#endif /* !_Mo_Out_ */
 
-#ifndef _Out_opt_
-#define _Out_opt_
-#endif // !_Out_opt_
+#ifndef _Mo_Out_Opt_
+#define _Mo_Out_Opt_
+#endif /* !_Mo_Out_Opt_ */
 
-#ifndef _Inout_
-#define _Inout_
-#endif // !_Inout_
+#ifndef _Mo_InOut_
+#define _Mo_InOut_
+#endif /* !_Mo_InOut_ */
 
-#ifndef _Inout_opt_
-#define _Inout_opt_
-#endif // !_Inout_opt_
-#endif // MILE_MOBILITY_ENABLE_MINIMUM_SAL
+#ifndef _Mo_InOut_Opt_
+#define _Mo_InOut_Opt_
+#endif /* !_Mo_InOut_Opt_ */
 
 #ifndef MOAPI
 #define MOAPI
-#endif // !MOAPI
+#endif /* !MOAPI */
 
 #ifndef NULL
-#ifdef __cplusplus
-#define NULL 0
-#else
-#define NULL ((void*)0)
-#endif
-#endif
+#define NULL MO_NULL
+#endif /* !NULL */
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #elif defined(_MSVC_LANG) && _MSVC_LANG >= 201103L
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 #else
 #ifndef nullptr
-#define nullptr NULL
-#endif // !nullptr
+#define nullptr MO_NULL
+#endif /* !nullptr */
 #endif
 
 #ifdef _MSC_VER
@@ -117,7 +133,7 @@ typedef unsigned long long MO_UINT64, *PMO_UINT64;
 #else
 #define MO_POINTER_SIZE 4
 #endif
-#endif // !MO_POINTER_SIZE
+#endif /* !MO_POINTER_SIZE */
 
 #ifndef MO_POINTER_WIDTH
 #if (MO_POINTER_SIZE == 8)
@@ -131,7 +147,7 @@ typedef unsigned long long MO_UINT64, *PMO_UINT64;
 #else
 #error "[MO_POINTER_WIDTH] Non-standard target. Please define a custom value."
 #endif
-#endif // !MO_POINTER_WIDTH
+#endif /* !MO_POINTER_WIDTH */
 
 #if (MO_POINTER_SIZE == 8)
 typedef MO_INT64 MO_INTN;
@@ -170,20 +186,20 @@ typedef MO_UINTN *PMO_UINTN;
 
 #ifndef MO_INTN_MIN
 #error "[MO_INTN_MIN] Non-standard target. Please define a custom value."
-#endif // !MO_INTN_MIN
+#endif /* !MO_INTN_MIN */
 #ifndef MO_INTN_MAX
 #error "[MO_INTN_MAX] Non-standard target. Please define a custom value."
-#endif // !MO_INTN_MAX
+#endif /* !MO_INTN_MAX */
 #ifndef MO_UINTN_MAX
 #error "[MO_UINTN_MAX] Non-standard target. Please define a custom value."
-#endif // !MO_UINTN_MAX
+#endif /* !MO_UINTN_MAX */
 
 typedef MO_UINT8 MO_BOOL, *PMO_BOOL;
 #define MO_FALSE 0
 #define MO_TRUE 1
 
 typedef char MO_CHAR, *PMO_CHAR;
-typedef CONST char MO_CONSTANT_CHAR, *PMO_CONSTANT_CHAR;
+typedef MO_CONST char MO_CONSTANT_CHAR, *PMO_CONSTANT_CHAR;
 #define MO_CHAR_MIN 0x00
 #define MO_CHAR_MAX 0xFF
 
@@ -192,7 +208,7 @@ typedef wchar_t MO_WIDE_CHAR, *PMO_WIDE_CHAR;
 #else
 typedef MO_UINT16 MO_WIDE_CHAR, *PMO_WIDE_CHAR;
 #endif
-typedef CONST MO_WIDE_CHAR MO_CONSTANT_WIDE_CHAR, *PMO_CONSTANT_WIDE_CHAR;
+typedef MO_CONST MO_WIDE_CHAR MO_CONSTANT_WIDE_CHAR, *PMO_CONSTANT_WIDE_CHAR;
 #define MO_WIDE_CHAR_MIN 0x0000
 #define MO_WIDE_CHAR_MAX 0xFFFF
 
@@ -202,9 +218,9 @@ typedef PMO_CONSTANT_CHAR MO_CONSTANT_STRING, *PMO_CONSTANT_STRING;
 typedef PMO_CONSTANT_WIDE_CHAR MO_CONSTANT_WIDE_STRING;
 typedef MO_CONSTANT_WIDE_STRING *PMO_CONSTANT_WIDE_STRING;
 
-typedef VOID *MO_POINTER;
+typedef MO_VOID *MO_POINTER;
 typedef MO_POINTER *PMO_POINTER;
-typedef CONST VOID *MO_CONSTANT_POINTER;
+typedef MO_CONST MO_VOID *MO_CONSTANT_POINTER;
 typedef MO_CONSTANT_POINTER *PMO_CONSTANT_POINTER;
 
 #ifdef GUID_DEFINED
@@ -220,99 +236,102 @@ typedef struct _MO_GUID
 #endif
 
 #ifndef MO_UNREFERENCED_PARAMETER
-#define MO_UNREFERENCED_PARAMETER(P) (P)
-#endif // !MO_UNREFERENCED_PARAMETER
+#define MO_UNREFERENCED_PARAMETER(PARAMETER) ((MO_VOID)(PARAMETER))
+#endif /* !MO_UNREFERENCED_PARAMETER */
 
 #ifndef MO_FIELD_OFFSET
 #define MO_FIELD_OFFSET(TYPE, Field) ((MO_UINTN)&(((TYPE*)0)->Field))
-#endif // !MO_FIELD_OFFSET
+#endif /* !MO_FIELD_OFFSET */
 
 #ifndef MO_FIELD_SIZE
 #define MO_FIELD_SIZE(TYPE, Field) (sizeof(((TYPE*)0)->Field))
-#endif // !MO_FIELD_SIZE
+#endif /* !MO_FIELD_SIZE */
 
 #ifndef MO_FIELD_SIZE_THROUGH
 #define MO_FIELD_SIZE_THROUGH(TYPE, Field) \
     (MO_FIELD_OFFSET(TYPE, Field) + MO_FIELD_SIZE(TYPE, Field))
-#endif // !MO_FIELD_SIZE_THROUGH
+#endif /* !MO_FIELD_SIZE_THROUGH */
 
 #ifndef MO_FIELD_CONTAINS
 #define MO_FIELD_CONTAINS(Struct, Size, Field) ( \
     (((PMO_UINT8)(&(Struct)->Field)) + sizeof((Struct)->Field)) \
     <= (((PMO_UINT8)(Struct)) + (Size)))
-#endif // !MO_FIELD_CONTAINS
+#endif /* !MO_FIELD_CONTAINS */
 
 #ifndef MO_C_STATIC_ASSERT
 #define MO_C_STATIC_ASSERT(Expression) \
     typedef char __MO_C_STATIC_ASSERT__[(Expression) ? 1 : -1]
-#endif // !MO_C_STATIC_ASSERT
+#endif /* !MO_C_STATIC_ASSERT */
 
 #ifndef MO_DECLARE_HANDLE
 #define MO_DECLARE_HANDLE(Name) \
     struct Name##__{ MO_UINTN Unused; }; \
     typedef struct Name##__ *Name
-#endif // !MO_DECLARE_HANDLE
+#endif /* !MO_DECLARE_HANDLE */
 
 #ifndef MO_DECLSPEC_ALIGN
-#ifdef _MSC_VER
-#if (_MSC_VER >= 1300) && !defined(MIDL_PASS)
+#if defined(MIDL_PASS)
+#define MO_DECLSPEC_ALIGN(x)
+#elif (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#define MO_DECLSPEC_ALIGN(x) alignas(x)
+#elif defined(_MSC_VER) && (_MSC_VER >= 1300)
 #define MO_DECLSPEC_ALIGN(x) __declspec(align(x))
+#elif defined(__GNUC__) || defined(__clang__)
+#define MO_DECLSPEC_ALIGN(x) __attribute__ ((aligned(x)))
 #else
 #define MO_DECLSPEC_ALIGN(x)
 #endif
-#else
-#define MO_DECLSPEC_ALIGN(x) __attribute__ ((aligned(x)))
-#endif
-#endif // !MO_DECLSPEC_ALIGN
+#endif /* !MO_DECLSPEC_ALIGN */
 
 #ifndef MO_FORCEINLINE
 #ifdef _MSC_VER
-#if (_MSC_VER >= 1200)
+#if defined(_MSC_VER) && (_MSC_VER >= 1200)
 #define MO_FORCEINLINE __forceinline
 #else
 #define MO_FORCEINLINE __inline
 #endif
-#elif defined(__GNUC__) || defined (__clang__)
+#elif defined(__GNUC__) || defined(__clang__)
 #define MO_FORCEINLINE __attribute__((always_inline)) inline
 #else
 #define MO_FORCEINLINE inline
 #endif
-#endif // !MO_FORCEINLINE
+#endif /* !MO_FORCEINLINE */
 
 #ifndef MO_NOINLINE
-#if (_MSC_VER >= 1300)
+#if defined(_MSC_VER) && (_MSC_VER >= 1300)
 #define MO_NOINLINE __declspec(noinline)
-#elif defined(__GNUC__) || defined (__clang__)
+#elif defined(__GNUC__) || defined(__clang__)
 #define MO_NOINLINE __attribute__((noinline))
 #else
 #define MO_NOINLINE
 #endif
-#endif // !MO_NOINLINE
+#endif /* !MO_NOINLINE */
 
 #ifndef MO_ANYSIZE_ARRAY
 #define MO_ANYSIZE_ARRAY 1
-#endif // !MO_ANYSIZE_ARRAY
+#endif /* !MO_ANYSIZE_ARRAY */
 
 #ifndef MO_MAX
 #define MO_MAX(Left, Right) (((Left) > (Right)) ? (Left) : (Right))
-#endif // !MO_MAX
+#endif /* !MO_MAX */
 
 #ifndef MO_MIN
 #define MO_MIN(Left, Right) (((Left) < (Right)) ? (Left) : (Right))
-#endif // !MO_MIN
+#endif /* !MO_MIN */
 
 #ifndef MO_ABS
 #define MO_ABS(Value) (((Value) < 0) ? (-(Value)) : (Value))
-#endif // !MO_ABS
+#endif /* !MO_ABS */
 
 #ifndef MO_ARRAY_SIZE
 #define MO_ARRAY_SIZE(Array) (sizeof(Array) / sizeof((Array)[0]))
-#endif // !MO_ARRAY_SIZE
+#endif /* !MO_ARRAY_SIZE */
 
 #ifndef MO_GET_ALIGNED_SIZE
 #define MO_GET_ALIGNED_SIZE(Size, Alignment) \
     (((Size) + (Alignment) - 1) & ~((Alignment) - 1))
-#endif // !MO_GET_ALIGNED_SIZE
+#endif /* !MO_GET_ALIGNED_SIZE */
 
 #ifndef MO_GET_VARIABLE_ADDRESS
 #ifdef __cplusplus
@@ -322,7 +341,7 @@ typedef struct _MO_GUID
 #define MO_GET_VARIABLE_ADDRESS(Variable) \
     (&(Variable))
 #endif
-#endif // !MO_GET_VARIABLE_ADDRESS
+#endif /* !MO_GET_VARIABLE_ADDRESS */
 
 #ifdef _MSC_VER /* MSVC */
 typedef PMO_CHAR MO_VARIABLE_ARGUMENT_LIST;
@@ -334,9 +353,9 @@ typedef PMO_CHAR MO_VARIABLE_ARGUMENT_LIST;
 #else
 #define _MO_VARIABLE_ARGUMENT_ALIGNMENT_ADJUSTMENT(Marker, TYPE) 0
 #endif
-#endif // !_MO_VARIABLE_ARGUMENT_ALIGNMENT_ADJUSTMENT
+#endif /* !_MO_VARIABLE_ARGUMENT_ALIGNMENT_ADJUSTMENT */
 #if defined(_M_AMD64) /* x64 */
-EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
+MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) \
     __va_start(&Marker, Parameter)
 #define MO_VARIABLE_ARGUMENT_READ(Marker, TYPE) ( \
@@ -348,7 +367,7 @@ EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #elif defined(_M_ARM_NT) /* ARM32 */
 #ifdef __cplusplus
-EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
+MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) __va_start( \
     &Marker, \
     MO_GET_VARIABLE_ADDRESS(Parameter), \
@@ -366,7 +385,7 @@ EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_END(Marker) \
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #elif defined(_M_ARM64) /* ARM64 */
-EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
+MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) __va_start( \
     &Marker, \
     MO_GET_VARIABLE_ADDRESS(Parameter), \
@@ -383,7 +402,7 @@ EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_END(Marker) \
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #elif defined(_M_HYBRID_X86_ARM64) /* CHPE */
-EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
+MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) __va_start( \
     &Marker, \
     MO_GET_VARIABLE_ADDRESS(Parameter), \
@@ -396,7 +415,7 @@ EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_END(Marker) \
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #elif defined(_M_ARM64EC) /* ARM64EC */
-EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
+MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) __va_start( \
     &Marker, \
     MO_GET_VARIABLE_ADDRESS(Parameter), \
@@ -424,9 +443,9 @@ EXTERN_C void __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #endif
 #define MO_VARIABLE_ARGUMENT_COPY(Destination, Source) \
-    ((VOID)((Destination) = (Source)))
-#elif defined(__GNUC__) || defined (__clang__) /* GCC and Clang */
-#ifndef MILE_MOBILITY_FORCE_MICROSOFT_ABI
+    ((MO_VOID)((Destination) = (Source)))
+#elif defined(__GNUC__) || defined(__clang__) /* GCC and Clang */
+#ifdef MILE_MOBILITY_FORCE_MICROSOFT_ABI
 typedef __builtin_ms_va_list MO_VARIABLE_ARGUMENT_LIST;
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) \
     __builtin_ms_va_start(Marker, Parameter)
@@ -462,68 +481,68 @@ typedef MO_UINT8* MO_VARIABLE_ARGUMENT_LIST;
 #define MO_VARIABLE_ARGUMENT_END(Marker) \
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
 #define MO_VARIABLE_ARGUMENT_COPY(Destination, Source) \
-    ((VOID)((Destination) = (Source)))
+    ((MO_VOID)((Destination) = (Source)))
 #endif
 
-// Defines result code type and values based on HRESULT from Windows.
+/* Defines result code type and values based on HRESULT from Windows. */
 
 typedef MO_UINT32 MO_RESULT, *PMO_RESULT;
 
-// Operation successful. (S_OK)
+/* Operation successful. (S_OK) */
 #define MO_RESULT_SUCCESS_OK ((MO_RESULT)0x00000000)
 
-// Operation successful, but with a false condition. (S_FALSE)
+/* Operation successful, but with a false condition. (S_FALSE) */
 #define MO_RESULT_SUCCESS_FALSE ((MO_RESULT)0x00000001)
 
-// Catastrophic failure. (E_UNEXPECTED)
+/* Catastrophic failure. (E_UNEXPECTED) */
 #define MO_RESULT_ERROR_UNEXPECTED ((MO_RESULT)0x8000FFFF)
 
-// Not implemented. (E_NOTIMPL)
+/* Not implemented. (E_NOTIMPL) */
 #define MO_RESULT_ERROR_NOT_IMPLEMENTED ((MO_RESULT)0x80004001)
 
-// Not enough memory resources are available to complete this operation.
-// (E_OUTOFMEMORY)
+/* Not enough memory resources are available to complete this operation. */
+/* (E_OUTOFMEMORY) */
 #define MO_RESULT_ERROR_OUT_OF_MEMORY ((MO_RESULT)0x8007000E)
 
-// The parameter is incorrect. (E_INVALIDARG)
+/* The parameter is incorrect. (E_INVALIDARG) */
 #define MO_RESULT_ERROR_INVALID_PARAMETER ((MO_RESULT)0x80070057)
 
-// No such interface supported. (E_NOINTERFACE)
+/* No such interface supported. (E_NOINTERFACE) */
 #define MO_RESULT_ERROR_NO_INTERFACE ((MO_RESULT)0x80004002)
 
-// The pointer is invalid. (E_POINTER)
+/* The pointer is invalid. (E_POINTER) */
 #define MO_RESULT_ERROR_INVALID_POINTER ((MO_RESULT)0x80004003)
 
-// The handle is invalid. (E_HANDLE)
+/* The handle is invalid. (E_HANDLE) */
 #define MO_RESULT_ERROR_INVALID_HANDLE ((MO_RESULT)0x80070006)
 
-// Operation aborted. (E_ABORT)
+/* Operation aborted. (E_ABORT) */
 #define MO_RESULT_ERROR_OPERATION_ABORTED ((MO_RESULT)0x80004004)
 
-// Unspecified error. (E_FAIL)
+/* Unspecified error. (E_FAIL) */
 #define MO_RESULT_ERROR_FAIL ((MO_RESULT)0x80004005)
 
-// Access is denied. (E_ACCESSDENIED)
+/* Access is denied. (E_ACCESSDENIED) */
 #define MO_RESULT_ERROR_ACCESS_DENIED ((MO_RESULT)0x80070005)
 
-// The data necessary to complete this operation is not yet available.
-// (E_PENDING)
+/* The data necessary to complete this operation is not yet available. */
+/* (E_PENDING) */
 #define MO_RESULT_ERROR_PENDING ((MO_RESULT)0x8000000A)
 
-// The operation attempted to access data outside the valid range. (E_BOUNDS)
+/* The operation attempted to access data outside the valid range. (E_BOUNDS) */
 #define MO_RESULT_ERROR_OUT_OF_BOUNDS ((MO_RESULT)0x8000000B)
 
-// A concurrent or interleaved operation changed the state of the object,
-// invalidating this operation. (E_CHANGED_STATE)
+/* A concurrent or interleaved operation changed the state of the object, */
+/* invalidating this operation. (E_CHANGED_STATE) */
 #define MO_RESULT_ERROR_CHANGED_STATE ((MO_RESULT)0x8000000C)
 
-// An illegal state change was requested. (E_ILLEGAL_STATE_CHANGE)
+/* An illegal state change was requested. (E_ILLEGAL_STATE_CHANGE) */
 #define MO_RESULT_ERROR_ILLEGAL_STATE_CHANGE ((MO_RESULT)0x8000000D)
 
-// A method was called at an unexpected time. (E_ILLEGAL_METHOD_CALL)
+/* A method was called at an unexpected time. (E_ILLEGAL_METHOD_CALL) */
 #define MO_RESULT_ERROR_ILLEGAL_METHOD_CALL ((MO_RESULT)0x8000000E)
 
-// A delegate was assigned when not allowed. (E_ILLEGAL_DELEGATE_ASSIGNMENT)
+/* A delegate was assigned when not allowed. (E_ILLEGAL_DELEGATE_ASSIGNMENT) */
 #define MO_RESULT_ERROR_ILLEGAL_DELEGATE_ASSIGNMENT ((MO_RESULT)0x80000018)
 
-#endif // !MILE_MOBILITY_PORTABLE_TYPES
+#endif /* !MILE_MOBILITY_PORTABLE_TYPES */
