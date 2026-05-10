@@ -129,7 +129,7 @@ EndSection
 ' | sudo tee /etc/X11/xorg.conf
 ```
 
-## Remove unnecessary X.Org drivers
+### Remove unnecessary X.Org drivers
 
 ```
 sudo apt purge xserver-xorg-video-all
