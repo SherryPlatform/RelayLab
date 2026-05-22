@@ -33,11 +33,17 @@
     <ClInclude Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.h">
       <Filter>Mile.Posix.Helpers</Filter>
     </ClInclude>
+    <ClInclude Include="Mile.Mobility\Mile.Mobility.Utilities.FixedInteger.h">
+      <Filter>Mile.Mobility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp">
       <Filter>Mile.Posix.Helpers</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mile.Mobility\Mile.Mobility.Utilities.FixedInteger.c">
+      <Filter>Mile.Mobility</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

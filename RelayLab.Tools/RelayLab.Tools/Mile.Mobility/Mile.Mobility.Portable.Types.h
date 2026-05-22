@@ -286,7 +286,7 @@ typedef struct _MO_GUID
 
 #ifndef MO_FORCEINLINE
 #ifdef _MSC_VER
-#if defined(_MSC_VER) && (_MSC_VER >= 1200)
+#if (_MSC_VER >= 1200)
 #define MO_FORCEINLINE __forceinline
 #else
 #define MO_FORCEINLINE __inline
