@@ -64,6 +64,7 @@ echo "LINK $TargetPath"
     "$ObjectsDirectory/main.o" \
     "$ObjectsDirectory/Mile.Mobility.Utilities.FixedInteger.o" \
     "$ObjectsDirectory/Mile.Helpers.CppBase.o" \
+    -Wl,--gc-sections \
     -o "$TargetPath"
 
 echo "TARGET $TargetPath"
