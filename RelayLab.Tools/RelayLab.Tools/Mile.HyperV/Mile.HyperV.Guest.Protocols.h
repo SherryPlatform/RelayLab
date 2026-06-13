@@ -3245,8 +3245,24 @@ typedef struct _RNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO
     };
 } RNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO, *PRNDIS_TCP_LARGE_SEND_OFFLOAD_NET_BUFFER_LIST_INFO;
 
+typedef struct _RNDIS_VLAN_NET_BUFFER_LIST_INFO
+{
+    union
+    {
+        struct
+        {
+            HV_UINT32 Priority : 3;
+            HV_UINT32 DropEligibleIndicator : 1;
+            HV_UINT32 VlanId : 12;
+            HV_UINT32 Reserved : 16;
+        } Transmit;
+        HV_UINT32 Value;
+    };
+} RNDIS_VLAN_NET_BUFFER_LIST_INFO, *PRNDIS_VLAN_NET_BUFFER_LIST_INFO;
+
 #define RNDIS_PPI_TCP_IP_CHECKSUM 0
 #define RNDIS_PPI_LARGE_SEND_OFFLOAD 2
+#define RNDIS_PPI_VLAN 6
 
 // Values for ParameterType in ConfigParameterInfo
 
@@ -4172,6 +4188,15 @@ typedef struct _VPCI_QUERY_BUS_RELATIONS
     VPCI_DEVICE_DESCRIPTION Devices[HV_ANYSIZE_ARRAY];
 } VPCI_QUERY_BUS_RELATIONS, *PVPCI_QUERY_BUS_RELATIONS;
 
+// Flags for `VPCI_DEVICE_DESCRIPTION_2`.
+typedef struct _VPCI_DEVICE_DESCRIPTION_2_FLAGS
+{
+    // The `NumaNode` field contains valid NUMA affinity information.
+    HV_UINT32 NumaAffinitySpecified : 1;
+    // Reserved bits.
+    HV_UINT32 Reserved : 31;
+} VPCI_DEVICE_DESCRIPTION_2_FLAGS, *PVPCI_DEVICE_DESCRIPTION_2_FLAGS;
+
 // Extended device description (version 2).
 // This version adds support for NUMA node information and additional flags.
 typedef struct _VPCI_DEVICE_DESCRIPTION_2
@@ -4183,7 +4208,7 @@ typedef struct _VPCI_DEVICE_DESCRIPTION_2
     // Device serial number
     HV_UINT32 SerialNumber;
     // Device-specific flags
-    HV_UINT32 Flags;
+    VPCI_DEVICE_DESCRIPTION_2_FLAGS Flags;
     // NUMA node the device is associated with
     HV_UINT16 NumaNode;
     // Reserved field
@@ -6211,7 +6236,12 @@ typedef struct _UEFI_CONFIG_FLAGS
         HV_UINT64 Dhcp6DuidTypeLlt : 1;
         HV_UINT64 CxlMemoryEnabled : 1;
         HV_UINT64 MtrrsInitializedAtLoad : 1;
-        HV_UINT64 Reserved : 35;
+        // Reserved; used by other codebase.
+        HV_UINT64 HvSintEnabled : 1;
+        HV_UINT64 VmbusDisabled : 1;
+        HV_UINT64 PciResourcesPreAssigned : 1;
+        HV_UINT64 ForceDmaBounceEnabled : 1;
+        HV_UINT64 Reserved : 31;
     } Flags;
 } UEFI_CONFIG_FLAGS, *PUEFI_CONFIG_FLAGS;
 
