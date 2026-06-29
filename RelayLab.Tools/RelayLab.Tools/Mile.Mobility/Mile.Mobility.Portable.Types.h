@@ -346,7 +346,7 @@ typedef struct _MO_GUID
 #ifdef _MSC_VER /* MSVC */
 typedef PMO_CHAR MO_VARIABLE_ARGUMENT_LIST;
 #ifndef _MO_VARIABLE_ARGUMENT_ALIGNMENT_ADJUSTMENT
-#if defined(_M_ARM_NT) || defined(_M_ARM64) || \
+#if defined(_M_ARM) || defined(_M_ARM_NT) || defined(_M_ARM64) || \
     defined(_M_HYBRID_X86_ARM64) || defined(_M_ARM64EC)
 #define _MO_VARIABLE_ARGUMENT_ALIGNMENT_ADJUSTMENT(Marker, TYPE) \
     (((MO_VARIABLE_ARGUMENT_LIST)0 - (Marker)) & (__alignof(TYPE) - 1))
@@ -365,7 +365,7 @@ MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
         : *(TYPE*)((Marker += sizeof(MO_UINTN)) - sizeof(MO_UINTN)))
 #define MO_VARIABLE_ARGUMENT_END(Marker) \
     (Marker = (MO_VARIABLE_ARGUMENT_LIST)0)
-#elif defined(_M_ARM_NT) /* ARM32 */
+#elif defined(_M_ARM) || defined(_M_ARM_NT) /* ARM32 */
 #ifdef __cplusplus
 MO_EXTERN_C MO_VOID __cdecl __va_start(MO_VARIABLE_ARGUMENT_LIST*, ...);
 #define MO_VARIABLE_ARGUMENT_START(Marker, Parameter) __va_start( \

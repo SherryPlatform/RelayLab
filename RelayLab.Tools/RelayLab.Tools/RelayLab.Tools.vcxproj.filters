@@ -36,6 +36,9 @@
     <ClInclude Include="Mile.Mobility\Mile.Mobility.Utilities.FixedInteger.h">
       <Filter>Mile.Mobility</Filter>
     </ClInclude>
+    <ClInclude Include="Mile.Mobility\Mile.Mobility.Utilities.MemoryAccess.h">
+      <Filter>Mile.Mobility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Mile.Posix.Helpers\Mile.Helpers.CppBase.cpp">
@@ -43,6 +46,9 @@
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mile.Mobility\Mile.Mobility.Utilities.FixedInteger.c">
+      <Filter>Mile.Mobility</Filter>
+    </ClCompile>
+    <ClCompile Include="Mile.Mobility\Mile.Mobility.Utilities.MemoryAccess.c">
       <Filter>Mile.Mobility</Filter>
     </ClCompile>
   </ItemGroup>

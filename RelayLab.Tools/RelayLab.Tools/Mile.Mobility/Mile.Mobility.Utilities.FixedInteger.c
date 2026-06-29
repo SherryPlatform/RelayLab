@@ -10,7 +10,7 @@
 
 #include "Mile.Mobility.Utilities.FixedInteger.h"
 
- /* Check the assumptions on the fixed width integer types. */
+/* Check the assumptions on the fixed width integer types. */
 
 MO_C_STATIC_ASSERT(1 == sizeof(MO_UINT8));
 MO_C_STATIC_ASSERT(2 == sizeof(MO_UINT16));
