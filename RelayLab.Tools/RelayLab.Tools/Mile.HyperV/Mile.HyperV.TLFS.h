@@ -4222,26 +4222,6 @@ typedef struct _VM_PARTITION_ASSIST_PAGE
 
 #define HV_VMX_SYNTHETIC_EXIT_REASON_TRAP_AFTER_FLUSH 0x10000031
 
-typedef union _HV_GPA_PAGE_RANGE
-{
-    HV_UINT64 AsUINT64;
-    struct
-    {
-        HV_UINT64 AdditionalPages : 11;
-        HV_UINT64 LargePage : 1;
-        union
-        {
-            HV_UINT64 BasePfn : 52;
-            struct
-            {
-                HV_UINT64 PageSize : 1;
-                HV_UINT64 Reserved1 : 8;
-                HV_UINT64 BaseLargePfn : 43;
-            };
-        };
-    };
-} HV_GPA_PAGE_RANGE, *PHV_GPA_PAGE_RANGE;
-
 // Below is the type definition for the enlightened VMCS. The corresponding
 // Intel physical VMCS encoding for each field can be found in 16.11.4. Note
 // that some enlightened VMCS fields are synthetic, and therefore will not have
@@ -7475,12 +7455,6 @@ typedef union _HV_PARTITION_PROCESSOR_VIRTUALIZATION_FEATURES
     HV_UINT64 AsUINT64;
 } HV_PARTITION_PROCESSOR_VIRTUALIZATION_FEATURES, *PHV_PARTITION_PROCESSOR_VIRTUALIZATION_FEATURES;
 
-typedef struct _HV_INPUT_GPA_PAGE_PINNING
-{
-    HV_UINT64 Reserved;
-    HV_GPA_PAGE_RANGE GpaRangeList[];
-} HV_INPUT_GPA_PAGE_PINNING, *PHV_INPUT_GPA_PAGE_PINNING;
-
 typedef struct _HV_OUTPUT_GET_PARTITION_RESERVED_PAGES
 {
     union
@@ -7901,9 +7875,7 @@ typedef struct _HV_HYPERVISOR_ISOLATION_CONFIGURATION_PRIVATE
 
 typedef struct _HV_HYPERVISOR_NESTED_VIRT_FEATURES_PRIVATE
 {
-    HV_UINT32 Reserved0 : 21;
-    HV_UINT32 DebugCtl : 1;
-    HV_UINT32 EnlightenedNptTlb : 1;
+    HV_UINT32 Reserved0 : 23;
     HV_UINT32 NoRmpTableRequired : 1;
     HV_UINT32 EnlightenedSevSwap : 1;
     HV_UINT32 Reserved1 : 7;
@@ -11224,6 +11196,12 @@ typedef struct HV_CALL_ATTRIBUTES _HV_INPUT_MAP_PARTITION_EVENTLOG_BUFFER
     HV_UINT32 BufferIndex;
     HV_GPA_PAGE_RANGE GpaRange;
 } HV_INPUT_MAP_PARTITION_EVENTLOG_BUFFER, *PHV_INPUT_MAP_PARTITION_EVENTLOG_BUFFER;
+
+// HvCallQuerySparseGpaPageHostVisibility | 0x011C
+
+// HvCallQueryInformationGpaRange | 0x0135
+
+// Already defined in Mile.HyperV.Guest.Interface.h.
 
 // *****************************************************************************
 // Hypervisor Extended Hypercall Definitions
