@@ -3486,7 +3486,6 @@ typedef enum _HV_REGISTER_NAME_PRIVATE
 
     // Arm64 Control Registers
 
-    HvArm64RegisterMpidrEl1 = 0x00040001,
     HvArm64RegisterActlrEl1 = 0x00040003,
     HvArm64RegisterCpacrEl1 = 0x00040004,
     HvArm64RegisterContextidrEl1 = 0x0004000D,
@@ -7082,17 +7081,6 @@ typedef union _HV_PICO100_DURATION
 {
     HV_UINT64 AsUINT64;
 } HV_PICO100_DURATION;
-
-typedef struct _HV_GPA_ATTRIBUTE_INTERCEPT_MESSAGE
-{
-    HV_VP_INDEX VpIndex;
-    HV_UINT32 RangeCount : 5;
-    HV_UINT32 Adjust : 1;
-    HV_UINT32 HostVisibility : 2;
-    HV_UINT32 MemoryType : 6;
-    HV_UINT32 Reserved : 18;
-    _HV_GPA_PAGE_RANGE Ranges[29];
-} HV_GPA_ATTRIBUTE_INTERCEPT_MESSAGE, *PHV_GPA_ATTRIBUTE_INTERCEPT_MESSAGE;
 
 typedef struct _HV_SNP_PSP_TCB_VERSION
 {
