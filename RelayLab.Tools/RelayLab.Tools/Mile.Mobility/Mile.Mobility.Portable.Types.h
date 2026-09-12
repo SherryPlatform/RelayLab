@@ -127,6 +127,16 @@ typedef unsigned long long MO_UINT64, *PMO_UINT64;
 #define MO_UINT32_MAX 0xFFFFFFFFU
 #define MO_UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 
+#define MO_INT8_WIDTH 8
+#define MO_INT16_WIDTH 16
+#define MO_INT32_WIDTH 32
+#define MO_INT64_WIDTH 64
+
+#define MO_UINT8_WIDTH 8
+#define MO_UINT16_WIDTH 16
+#define MO_UINT32_WIDTH 32
+#define MO_UINT64_WIDTH 64
+
 #ifndef MO_POINTER_SIZE
 #if defined(_WIN64) || defined(_LP64) || defined(__LP64__)
 #define MO_POINTER_SIZE 8
@@ -156,6 +166,8 @@ typedef MO_UINT64 MO_UINTN;
 #define MO_INTN_MIN MO_INT64_MIN
 #define MO_INTN_MAX MO_INT64_MAX
 #define MO_UINTN_MAX MO_UINT64_MAX
+#define MO_INTN_WIDTH MO_INT64_WIDTH
+#define MO_UINTN_WIDTH MO_UINT64_WIDTH
 #elif (MO_POINTER_SIZE == 4)
 typedef MO_INT32 MO_INTN;
 typedef MO_UINT32 MO_UINTN;
@@ -163,6 +175,8 @@ typedef MO_UINT32 MO_UINTN;
 #define MO_INTN_MIN MO_INT32_MIN
 #define MO_INTN_MAX MO_INT32_MAX
 #define MO_UINTN_MAX MO_UINT32_MAX
+#define MO_INTN_WIDTH MO_INT32_WIDTH
+#define MO_UINTN_WIDTH MO_UINT32_WIDTH
 #elif (MO_POINTER_SIZE == 2)
 typedef MO_INT16 MO_INTN;
 typedef MO_UINT16 MO_UINTN;
@@ -170,6 +184,8 @@ typedef MO_UINT16 MO_UINTN;
 #define MO_INTN_MIN MO_INT16_MIN
 #define MO_INTN_MAX MO_INT16_MAX
 #define MO_UINTN_MAX MO_UINT16_MAX
+#define MO_INTN_WIDTH MO_INT16_WIDTH
+#define MO_UINTN_WIDTH MO_UINT16_WIDTH
 #elif (MO_POINTER_SIZE == 1)
 typedef MO_INT8 MO_INTN;
 typedef MO_UINT8 MO_UINTN;
@@ -177,6 +193,8 @@ typedef MO_UINT8 MO_UINTN;
 #define MO_INTN_MIN MO_INT8_MIN
 #define MO_INTN_MAX MO_INT8_MAX
 #define MO_UINTN_MAX MO_UINT8_MAX
+#define MO_INTN_WIDTH MO_INT8_WIDTH
+#define MO_UINTN_WIDTH MO_UINT8_WIDTH
 #else
 #error "[MO_INTN, MO_UINTN] Non-standard target. Please define a custom type."
 #endif
@@ -193,15 +211,86 @@ typedef MO_UINTN *PMO_UINTN;
 #ifndef MO_UINTN_MAX
 #error "[MO_UINTN_MAX] Non-standard target. Please define a custom value."
 #endif /* !MO_UINTN_MAX */
+#ifndef MO_INTN_WIDTH
+#error "[MO_INTN_WIDTH] Non-standard target. Please define a custom value."
+#endif /* !MO_INTN_WIDTH */
+#ifndef MO_UINTN_WIDTH
+#error "[MO_UINTN_WIDTH] Non-standard target. Please define a custom value."
+#endif /* !MO_UINTN_WIDTH */
 
 typedef MO_UINT8 MO_BOOL, *PMO_BOOL;
 #define MO_FALSE 0
 #define MO_TRUE 1
 
+typedef float MO_FP32, *PMO_FP32;
+typedef double MO_FP64, *PMO_FP64;
+
+#if (defined(_MSC_VER) && (_MSC_VER >= 1900)) || \
+    defined(__GNUC__) || defined(__clang__)
+#define MO_FP_INFINITY (__builtin_huge_valf())
+#define MO_FP_NAN (__builtin_nanf("0"))
+#else
+#define MO_FP_INFINITY ((MO_FP32)(1e+300))
+#define MO_FP_NAN (-(MO_FP32)(((MO_FP32)(1e+300 * 1e+300)) * 0.0F))
+#endif
+
+#if defined(_M_FP_FAST)
+#define MO_FP_EVAL_METHOD (-1)
+#elif defined(_M_IX86) && (!defined(_M_IX86_FP) || (_M_IX86_FP < 2))
+#define MO_FP_EVAL_METHOD 2
+#elif defined(__FLT_EVAL_METHOD__)
+#define MO_FP_EVAL_METHOD __FLT_EVAL_METHOD__
+#else
+#define MO_FP_EVAL_METHOD 0
+#endif
+#define MO_FP_RADIX 2
+#define MO_FP_ROUNDS 1
+
+#define MO_FP32_DECIMAL_DIG 9
+#define MO_FP32_DIG 6
+#define MO_FP32_EPSILON 1.192092896e-07F
+#define MO_FP32_HAS_SUBNORM 1
+#define MO_FP32_MANT_DIG 24
+#define MO_FP32_MAX 3.402823466e+38F
+#define MO_FP32_MAX_10_EXP 38
+#define MO_FP32_MAX_EXP 128
+#define MO_FP32_MIN 1.175494351e-38F
+#define MO_FP32_MIN_10_EXP (-37)
+#define MO_FP32_MIN_EXP (-125)
+#if (defined(_MSC_VER) && (_MSC_VER >= 1900)) || \
+    defined(__GNUC__) || defined(__clang__)
+#define MO_FP32_SNAN (__builtin_nansf("1"))
+#endif
+#define MO_FP32_TRUE_MIN 1.401298464e-45F
+
+#define MO_FP64_DECIMAL_DIG 17
+#define MO_FP64_DIG 15
+#define MO_FP64_EPSILON 2.2204460492503131e-016
+#define MO_FP64_HAS_SUBNORM 1
+#define MO_FP64_MANT_DIG 53
+#define MO_FP64_MAX 1.7976931348623158e+308
+#define MO_FP64_MAX_10_EXP 308
+#define MO_FP64_MAX_EXP 1024
+#define MO_FP64_MIN 2.2250738585072014e-308
+#define MO_FP64_MIN_10_EXP (-307)
+#define MO_FP64_MIN_EXP (-1021)
+#if (defined(_MSC_VER) && (_MSC_VER >= 1900)) || \
+    defined(__GNUC__) || defined(__clang__)
+#define MO_FP64_SNAN (__builtin_nans("1"))
+#endif
+#define MO_FP64_TRUE_MIN 4.9406564584124654e-324
+
 typedef char MO_CHAR, *PMO_CHAR;
 typedef MO_CONST char MO_CONSTANT_CHAR, *PMO_CONSTANT_CHAR;
+#if defined(_CHAR_UNSIGNED) || defined(__CHAR_UNSIGNED__)
 #define MO_CHAR_MIN 0x00
-#define MO_CHAR_MAX 0xFF
+#define MO_CHAR_MAX MO_UINT8_MAX
+#define MO_CHAR_WIDTH MO_UINT8_WIDTH
+#else
+#define MO_CHAR_MIN MO_INT8_MIN
+#define MO_CHAR_MAX MO_INT8_MAX
+#define MO_CHAR_WIDTH MO_INT8_WIDTH
+#endif
 
 #ifdef _WCHAR_T_DEFINED
 typedef wchar_t MO_WIDE_CHAR, *PMO_WIDE_CHAR;
@@ -211,6 +300,7 @@ typedef MO_UINT16 MO_WIDE_CHAR, *PMO_WIDE_CHAR;
 typedef MO_CONST MO_WIDE_CHAR MO_CONSTANT_WIDE_CHAR, *PMO_CONSTANT_WIDE_CHAR;
 #define MO_WIDE_CHAR_MIN 0x0000
 #define MO_WIDE_CHAR_MAX 0xFFFF
+#define MO_WIDE_CHAR_WIDTH 16
 
 typedef PMO_CHAR MO_STRING, *PMO_STRING;
 typedef PMO_WIDE_CHAR MO_WIDE_STRING, *PMO_WIDE_STRING;

@@ -112,8 +112,8 @@ MO_EXTERN_C MO_BOOL MOAPI MoMileFixedIntegerCheckedSubtraction8(
             }
         }
 
-        /* Set the result only when the addition succeeds and the result is */
-        /* representable in the range determined by the fixed width and */
+        /* Set the result only when the subtraction succeeds and the result */
+        /* is representable in the range determined by the fixed width and */
         /* Signed. */
         *Result = Candidate;
     }
@@ -307,8 +307,8 @@ MO_EXTERN_C MO_BOOL MOAPI MoMileFixedIntegerCheckedSubtraction16(
             }
         }
 
-        /* Set the result only when the addition succeeds and the result is */
-        /* representable in the range determined by the fixed width and */
+        /* Set the result only when the subtraction succeeds and the result */
+        /* is representable in the range determined by the fixed width and */
         /* Signed. */
         *Result = Candidate;
     }
@@ -502,8 +502,8 @@ MO_EXTERN_C MO_BOOL MOAPI MoMileFixedIntegerCheckedSubtraction32(
             }
         }
 
-        /* Set the result only when the addition succeeds and the result is */
-        /* representable in the range determined by the fixed width and */
+        /* Set the result only when the subtraction succeeds and the result */
+        /* is representable in the range determined by the fixed width and */
         /* Signed. */
         *Result = Candidate;
     }
@@ -697,8 +697,8 @@ MO_EXTERN_C MO_BOOL MOAPI MoMileFixedIntegerCheckedSubtraction64(
             }
         }
 
-        /* Set the result only when the addition succeeds and the result is */
-        /* representable in the range determined by the fixed width and */
+        /* Set the result only when the subtraction succeeds and the result */
+        /* is representable in the range determined by the fixed width and */
         /* Signed. */
         *Result = Candidate;
     }
