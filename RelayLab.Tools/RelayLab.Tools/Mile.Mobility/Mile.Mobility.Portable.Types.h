@@ -137,6 +137,16 @@ typedef unsigned long long MO_UINT64, *PMO_UINT64;
 #define MO_UINT32_WIDTH 32
 #define MO_UINT64_WIDTH 64
 
+#define MO_INT8_C(Value) (Value)
+#define MO_INT16_C(Value) (Value)
+#define MO_INT32_C(Value) (Value)
+#define MO_INT64_C(Value) (Value ## LL)
+
+#define MO_UINT8_C(Value) (Value)
+#define MO_UINT16_C(Value) (Value)
+#define MO_UINT32_C(Value) (Value ## U)
+#define MO_UINT64_C(Value) (Value ## ULL)
+
 #ifndef MO_POINTER_SIZE
 #if defined(_WIN64) || defined(_LP64) || defined(__LP64__)
 #define MO_POINTER_SIZE 8
@@ -168,6 +178,8 @@ typedef MO_UINT64 MO_UINTN;
 #define MO_UINTN_MAX MO_UINT64_MAX
 #define MO_INTN_WIDTH MO_INT64_WIDTH
 #define MO_UINTN_WIDTH MO_UINT64_WIDTH
+#define MO_INTN_C(Value) MO_INT64_C(Value)
+#define MO_UINTN_C(Value) MO_UINT64_C(Value)
 #elif (MO_POINTER_SIZE == 4)
 typedef MO_INT32 MO_INTN;
 typedef MO_UINT32 MO_UINTN;
@@ -177,6 +189,8 @@ typedef MO_UINT32 MO_UINTN;
 #define MO_UINTN_MAX MO_UINT32_MAX
 #define MO_INTN_WIDTH MO_INT32_WIDTH
 #define MO_UINTN_WIDTH MO_UINT32_WIDTH
+#define MO_INTN_C(Value) MO_INT32_C(Value)
+#define MO_UINTN_C(Value) MO_UINT32_C(Value)
 #elif (MO_POINTER_SIZE == 2)
 typedef MO_INT16 MO_INTN;
 typedef MO_UINT16 MO_UINTN;
@@ -186,6 +200,8 @@ typedef MO_UINT16 MO_UINTN;
 #define MO_UINTN_MAX MO_UINT16_MAX
 #define MO_INTN_WIDTH MO_INT16_WIDTH
 #define MO_UINTN_WIDTH MO_UINT16_WIDTH
+#define MO_INTN_C(Value) MO_INT16_C(Value)
+#define MO_UINTN_C(Value) MO_UINT16_C(Value)
 #elif (MO_POINTER_SIZE == 1)
 typedef MO_INT8 MO_INTN;
 typedef MO_UINT8 MO_UINTN;
@@ -195,6 +211,8 @@ typedef MO_UINT8 MO_UINTN;
 #define MO_UINTN_MAX MO_UINT8_MAX
 #define MO_INTN_WIDTH MO_INT8_WIDTH
 #define MO_UINTN_WIDTH MO_UINT8_WIDTH
+#define MO_INTN_C(Value) MO_INT8_C(Value)
+#define MO_UINTN_C(Value) MO_UINT8_C(Value)
 #else
 #error "[MO_INTN, MO_UINTN] Non-standard target. Please define a custom type."
 #endif
@@ -217,6 +235,12 @@ typedef MO_UINTN *PMO_UINTN;
 #ifndef MO_UINTN_WIDTH
 #error "[MO_UINTN_WIDTH] Non-standard target. Please define a custom value."
 #endif /* !MO_UINTN_WIDTH */
+#ifndef MO_INTN_C
+#error "[MO_INTN_C] Non-standard target. Please define a custom value."
+#endif /* !MO_INTN_C */
+#ifndef MO_UINTN_C
+#error "[MO_UINTN_C] Non-standard target. Please define a custom value."
+#endif /* !MO_UINTN_C */
 
 typedef MO_UINT8 MO_BOOL, *PMO_BOOL;
 #define MO_FALSE 0
