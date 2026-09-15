@@ -1,4 +1,5 @@
 ﻿#include <Mile.Mobility.Portable.Types.h>
+#include <Mile.Mobility.Utilities.MemoryAccess.h>
 #include <Mile.HyperV.VMBus.h>
 #include <Mile.Helpers.CppBase.h>
 
@@ -15,7 +16,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include <atomic>
 #include <filesystem>
 #include <span>
 
@@ -40,12 +40,13 @@ MO_EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
             reinterpret_cast<sockaddr*>(&SocketAddress),
             sizeof(SocketAddress)))
         {
+            int SocketBufferSize = static_cast<int>(BufferSize);
             if (0 == ::setsockopt(
                 Socket,
                 SOL_SOCKET,
                 SO_SNDBUF,
-                &BufferSize,
-                sizeof(BufferSize)))
+                &SocketBufferSize,
+                sizeof(SocketBufferSize)))
             {
                 if (0 != ::mount(
                     AccessName,
@@ -56,7 +57,7 @@ MO_EXTERN_C int MOAPI RlHvMountHcsPlan9Share(
                         "trans=fd,rfdno=%d,wfdno=%d,msize=%d,noload,aname=%s",
                         Socket,
                         Socket,
-                        BufferSize,
+                        SocketBufferSize,
                         AccessName).c_str()))
                 {
                     ErrorCode = errno;
@@ -264,19 +265,20 @@ MO_EXTERN_C int MOAPI RlHvUioGetDeviceInformation(
 
             FILE* FileObject = std::fopen(
                 Mile::FormatString(
-                    "%s/%s/maps/map%zu/size",
+                    "%s/%s/maps/map%u/size",
                     UioRootPath.c_str(),
                     DeviceObjectName,
                     i).c_str(),
                 "r");
             if (FileObject)
             {
-                if (EOF == std::fscanf(
+                errno = 0;
+                if (1 != std::fscanf(
                     FileObject,
-                    "0x%zx",
+                    "0x%x",
                     &Information->MemoryMapItems[i].Length))
                 {
-                    ErrorCode = errno;
+                    ErrorCode = errno ? errno : EIO;
                 }
 
                 std::fclose(FileObject);
@@ -327,13 +329,13 @@ MO_EXTERN_C MO_VOID MOAPI RlHvUioCloseDevice(
                 Instance->RingBufferSize * 2);
         }
 
-        if (-1 != Instance->FileDescriptor &&
-            Instance->FileDescriptor)
+        if (-1 != Instance->FileDescriptor)
         {
             ::close(Instance->FileDescriptor);
         }
 
         std::memset(Instance, 0, sizeof(RL_HV_UIO_DEVICE));
+        Instance->FileDescriptor = -1;
     }
 }
 
@@ -346,6 +348,7 @@ MO_EXTERN_C int MOAPI RlHvUioOpenDevice(
         return EINVAL;
     }
     std::memset(Instance, 0, sizeof(RL_HV_UIO_DEVICE));
+    Instance->FileDescriptor = -1;
 
     int ErrorCode = ::RlHvUioGetDeviceInformation(
         &Instance->DeviceInformation,
@@ -421,12 +424,12 @@ MO_EXTERN_C int MOAPI RlHvUioSetInterruptState(
     }
 
     MO_UINT32 Value = InterruptState ? 1 : 0;
-    return (sizeof(Value) == ::write(
-        Instance->FileDescriptor,
-        &Value,
-        sizeof(Value)))
-        ? 0
-        : errno;
+    ssize_t Result = ::write(Instance->FileDescriptor, &Value, sizeof(Value));
+    if (-1 == Result)
+    {
+        return errno;
+    }
+    return (sizeof(Value) == static_cast<std::size_t>(Result)) ? 0 : EIO;
 }
 
 MO_EXTERN_C int MOAPI RlHvUioWaitInterrupt(
@@ -438,13 +441,16 @@ MO_EXTERN_C int MOAPI RlHvUioWaitInterrupt(
         return EINVAL;
     }
 
-    return (sizeof(*InterruptCount) == ::pread(
+    ssize_t Result = ::pread(
         Instance->FileDescriptor,
         InterruptCount,
         sizeof(*InterruptCount),
-        0))
-        ? 0
-        : errno;
+        0);
+    if (-1 == Result)
+    {
+        return errno;
+    }
+    return (sizeof(*InterruptCount) == static_cast<std::size_t>(Result)) ? 0 : EIO;
 }
 
 namespace
@@ -525,9 +531,9 @@ MO_EXTERN_C int MOAPI RlHvUioReceive(
     }
     *NumberOfBytesReceived = 0;
 
-    std::atomic_thread_fence(std::memory_order_seq_cst);
     MO_UINT32 PreviousIn = Instance->IncomingControl->In;
     MO_UINT32 PreviousOut = Instance->IncomingControl->Out;
+    ::MoMileMemoryBarrier();
 
     MO_UINT32 AvailableSize = 0;
     ::GetAvailableSizeInformation(
@@ -605,7 +611,7 @@ MO_EXTERN_C int MOAPI RlHvUioReceive(
         return EIO;
     }
     MO_UINT32 PipeDataSize = Header.DataSize;
-    if (AvailableBytes.size() < sizeof(VMPIPE_PROTOCOL_HEADER) + PipeDataSize)
+    if (BytesSpan.size() < sizeof(VMPIPE_PROTOCOL_HEADER) + PipeDataSize)
     {
         return EIO;
     }
@@ -627,8 +633,8 @@ MO_EXTERN_C int MOAPI RlHvUioReceive(
         FinalOffset -= Instance->DataMaximumSize;
     }
 
+    ::MoMileMemoryBarrier();
     Instance->IncomingControl->Out = FinalOffset;
-    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     return 0;
 }
@@ -643,19 +649,24 @@ MO_EXTERN_C int MOAPI RlHvUioTransmit(
         return EINVAL;
     }
 
-    std::atomic_thread_fence(std::memory_order_seq_cst);
     MO_UINT32 PreviousIn = Instance->OutgoingControl->In;
     MO_UINT32 PreviousOut = Instance->OutgoingControl->Out;
+    ::MoMileMemoryBarrier();
 
     VMPACKET_DESCRIPTOR Descriptor = {};
     Descriptor.Type = VmbusPacketTypeDataInBand;
     Descriptor.DataOffset8 = static_cast<MO_UINT16>(
         sizeof(VMPACKET_DESCRIPTOR) >> 3);
-    Descriptor.Length8 = std::min(
-        static_cast<MO_UINT16>(::GetAlignedSize(
+    {
+        MO_UINTN RawLength = ::GetAlignedSize(
             RL_HV_UIO_PIPE_PACKET_HEADER_SIZE + NumberOfBytesToTransmit,
-            sizeof(MO_UINT64)) >> 3),
-        static_cast<MO_UINT16>(MO_UINT16_MAX));
+            sizeof(MO_UINT64)) >> 3;
+        if (RawLength > MO_UINT16_MAX)
+        {
+            return EMSGSIZE;
+        }
+        Descriptor.Length8 = static_cast<MO_UINT16>(RawLength);
+    }
     Descriptor.Flags = 0;
     Descriptor.TransactionId = MO_UINT64_MAX;
 
@@ -690,7 +701,7 @@ MO_EXTERN_C int MOAPI RlHvUioTransmit(
         PreviousIn,
         PreviousOut,
         Instance->DataMaximumSize);
-    if (AvailableSize < PacketSize)
+    if (AvailableSize <= PacketSize)
     {
         return EAGAIN;
     }
@@ -728,8 +739,9 @@ MO_EXTERN_C int MOAPI RlHvUioTransmit(
         FinalOffset -= Instance->DataMaximumSize;
     }
 
+    ::MoMileMemoryBarrier();
     Instance->OutgoingControl->In = FinalOffset;
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    ::MoMileMemoryBarrier();
 
     if (!Instance->OutgoingControl->InterruptMask &&
         PreviousIn == PreviousOut)
@@ -807,7 +819,7 @@ namespace
             Guid->Data4[7]);
     }
 
-    struct HvUioDevice
+    struct HvUioDevice : Mile::DisableCopyConstruction
     {
     public:
 
@@ -914,6 +926,42 @@ namespace
         }
     };
 
+    static void SendAll(
+        _Mo_In_ int SocketFileDescriptor,
+        _Mo_In_ MO_CONSTANT_POINTER Buffer,
+        _Mo_In_ MO_UINTN NumberOfBytes)
+    {
+        MO_CONST MO_UINT8* Current =
+            static_cast<MO_CONST MO_UINT8*>(Buffer);
+
+        while (NumberOfBytes)
+        {
+            ssize_t SentBytes = ::send(
+                SocketFileDescriptor,
+                Current,
+                NumberOfBytes,
+                MSG_NOSIGNAL);
+
+            if (SentBytes > 0)
+            {
+                Current += static_cast<MO_UINTN>(SentBytes);
+                NumberOfBytes -= static_cast<MO_UINTN>(SentBytes);
+                continue;
+            }
+
+            if (-1 == SentBytes &&
+                (EINTR == errno || EAGAIN == errno || EWOULDBLOCK == errno))
+            {
+                continue;
+            }
+
+            int ErrorCode = -1 == SentBytes ? errno : EIO;
+            throw std::runtime_error(Mile::FormatString(
+                "Failed to send data to socket with error code %d",
+                ErrorCode));
+        }
+    }
+
     void SynthRdpProxyWorker(
         HvUioDevice& DataDevice)
     {
@@ -952,63 +1000,77 @@ namespace
         // X.224 Connection Request PDU (Patched)
         {
             MO_UINT32 BytesReceived = 0;
-            if (DataDevice.Receive(
-                TransmitBuffer,
-                sizeof(TransmitBuffer),
-                &BytesReceived))
+            for (;;)
             {
-                // Set requestedProtocols to PROTOCOL_RDP (0x00000000).
-                TransmitBuffer[15] = 0x00;
-
-                for (;;)
+                if (DataDevice.Receive(
+                    TransmitBuffer,
+                    sizeof(TransmitBuffer),
+                    &BytesReceived))
                 {
-                    ssize_t SentBytes = ::send(
-                        SocketFileDescriptor,
-                        TransmitBuffer,
-                        BytesReceived,
-                        0);
-                    if (SentBytes > 0)
-                    {
-                        break;
-                    }
-
-                    if (0 == SentBytes &&
-                        (EAGAIN == errno || EWOULDBLOCK == errno))
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        throw std::runtime_error("Failed to send data to socket");
-                    }
+                    break;
                 }
+
+                if (BytesReceived > sizeof(TransmitBuffer))
+                {
+                    throw std::runtime_error(
+                        "Receive buffer is too small");
+                }
+
+                MO_UINT32 InterruptCount = 0;
+                DataDevice.WaitInterrupt(&InterruptCount);
             }
+            if (BytesReceived <= 15)
+            {
+                throw std::runtime_error(
+                    "Invalid X.224 Connection Request PDU");
+            }
+
+            // Set requestedProtocols to PROTOCOL_RDP (0x00000000).
+            TransmitBuffer[15] = 0x00;
+
+            ::SendAll(SocketFileDescriptor, TransmitBuffer, BytesReceived);
         }
 
         // X.224 Connection Confirm PDU (Patched)
         {
-            ssize_t ReceivedBytes = ::recv(
-                SocketFileDescriptor,
-                ReceiveBuffer,
-                sizeof(ReceiveBuffer),
-                0);
-            if (ReceivedBytes > 0)
+            ssize_t ReceivedBytes = 0;
+            for (;;)
             {
-                for (;;)
+                ReceivedBytes = ::recv(
+                    SocketFileDescriptor,
+                    ReceiveBuffer,
+                    sizeof(ReceiveBuffer),
+                    0);
+
+                if (ReceivedBytes >= 0)
                 {
-                    bool Success = DataDevice.Transmit(
-                        ReceiveBuffer,
-                        static_cast<MO_UINT32>(ReceivedBytes));
-                    if (Success)
-                    {
-                        break;
-                    }
+                    break;
                 }
+
+                if (EINTR == errno ||
+                    EAGAIN == errno ||
+                    EWOULDBLOCK == errno)
+                {
+                    continue;
+                }
+
+                throw std::runtime_error(Mile::FormatString(
+                    "Failed to receive data from socket with error code %d",
+                    errno));
             }
-            else if (0 == ReceivedBytes)
+            if (0 == ReceivedBytes)
             {
-                // Break out the loop if the socket is closed.
                 return;
+            }
+
+            for (;;)
+            {
+                if (DataDevice.Transmit(
+                    ReceiveBuffer,
+                    static_cast<MO_UINT32>(ReceivedBytes)))
+                {
+                    break;
+                }
             }
         }
 
@@ -1022,28 +1084,7 @@ namespace
                 &BytesReceived))
             {
                 NotResponded = false;
-                for (;;)
-                {
-                    ssize_t SentBytes = ::send(
-                        SocketFileDescriptor,
-                        TransmitBuffer,
-                        BytesReceived,
-                        0);
-                    if (SentBytes > 0)
-                    {
-                        break;
-                    }
-
-                    if (0 == SentBytes &&
-                        (EAGAIN == errno || EWOULDBLOCK == errno))
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        throw std::runtime_error("Failed to send data to socket");
-                    }
-                }
+                ::SendAll(SocketFileDescriptor, TransmitBuffer, BytesReceived);
             }
 
             ssize_t ReceivedBytes = ::recv(
@@ -1069,6 +1110,13 @@ namespace
             {
                 // Break out the loop if the socket is closed.
                 break;
+            }
+            else if (-1 == ReceivedBytes &&
+                EINTR != errno &&
+                EAGAIN != errno &&
+                EWOULDBLOCK != errno)
+            {
+                throw std::runtime_error("Failed to receive data from socket");
             }
 
             if (NotResponded)
