@@ -986,6 +986,8 @@ namespace
             }
         });
 
+        std::printf("[SynthRdp] Connecting to localhost:3389\n");
+
         if (0 != ::connect(
             SocketFileDescriptor,
             reinterpret_cast<sockaddr*>(&SocketAddress),
@@ -994,11 +996,15 @@ namespace
             throw std::runtime_error("Failed to connect to localhost:3389");
         }
 
+        std::printf("[SynthRdp] Connected to localhost:3389\n");
+
         std::uint8_t ReceiveBuffer[16384] = {};
         std::uint8_t TransmitBuffer[16384] = {};
 
         // X.224 Connection Request PDU (Patched)
         {
+            std::printf("[SynthRdp] Waiting for X.224 Connection Request\n");
+
             MO_UINT32 BytesReceived = 0;
             for (;;)
             {
@@ -1024,15 +1030,23 @@ namespace
                 throw std::runtime_error(
                     "Invalid X.224 Connection Request PDU");
             }
+            std::printf(
+                "[SynthRdp] X.224 Connection Request received: %u bytes\n",
+                BytesReceived);
 
             // Set requestedProtocols to PROTOCOL_RDP (0x00000000).
             TransmitBuffer[15] = 0x00;
 
             ::SendAll(SocketFileDescriptor, TransmitBuffer, BytesReceived);
+
+            std::printf(
+                "[SynthRdp] X.224 Connection Request queued to local socket\n");
         }
 
         // X.224 Connection Confirm PDU (Patched)
         {
+            std::printf("[SynthRdp] Waiting for X.224 Connection Confirm\n");
+
             ssize_t ReceivedBytes = 0;
             for (;;)
             {
@@ -1060,9 +1074,16 @@ namespace
             }
             if (0 == ReceivedBytes)
             {
+                std::printf(
+                    "[SynthRdp] Local RDP socket closed during handshake\n");
                 return;
             }
+            std::printf(
+                "[SynthRdp] X.224 Connection Confirm received: %zd bytes\n",
+                ReceivedBytes);
 
+            std::printf(
+                "[SynthRdp] Forwarding X.224 Connection Confirm to data channel\n");
             for (;;)
             {
                 if (DataDevice.Transmit(
@@ -1072,7 +1093,12 @@ namespace
                     break;
                 }
             }
+            std::printf(
+                "[SynthRdp] X.224 Connection Confirm forwarded\n");
         }
+
+        std::printf(
+            "[SynthRdp] Proxy forwarding loop started\n");
 
         bool NotResponded = true;
         for (;;)
