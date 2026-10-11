@@ -519,7 +519,7 @@ typedef union _HV_GPA_PAGE_RANGE
         HV_UINT64 BaseLargePfn : 43;
     };
 } HV_GPA_PAGE_RANGE, *PHV_GPA_PAGE_RANGE;
-typedef _HV_GPA_PAGE_RANGE _HV_GPA_RANGE;
+typedef union _HV_GPA_PAGE_RANGE _HV_GPA_RANGE;
 typedef HV_GPA_PAGE_RANGE HV_GPA_RANGE;
 typedef PHV_GPA_PAGE_RANGE PHV_GPA_RANGE;
 
@@ -5618,7 +5618,11 @@ typedef struct HV_CALL_ATTRIBUTES _HV_INPUT_MODIFY_SPARSE_GPA_PAGE_HOST_VISIBILI
     HV_PARTITION_ID TargetPartitionId;
     // Supplies the new host visibility. (HV_HOST_VISIBILITY_*)
     HV_UINT32 HostVisibility : 2;
-    HV_UINT32 Reserved0 : 30;
+    // Supplies the page immutability setting for SEV-TIO bring-up.
+    // Supported only on internal Hyper-V builds implementing this extension;
+    // otherwise, this field must be zero.
+    HV_UINT32 Immutability : 1;
+    HV_UINT32 Reserved0 : 29;
     HV_UINT32 Reserved1;
     // Supplies an array of GPA page numbers to modify.
     HV_CALL_ATTRIBUTES HV_GPA_PAGE_NUMBER GpaPageList[HV_ANYSIZE_ARRAY];
@@ -5679,13 +5683,13 @@ typedef struct HV_CALL_ATTRIBUTES _HV_INPUT_GPA_PAGE_PINNING
 // compatibility.
 HV_STATIC_ASSERT(HV_GPA_PAGE_PINNING_MAX_RANGE_COUNT == 511);
 
-typedef _HV_INPUT_GPA_PAGE_PINNING _HV_INPUT_PIN_GPA_PAGE_RANGES;
+typedef struct _HV_INPUT_GPA_PAGE_PINNING _HV_INPUT_PIN_GPA_PAGE_RANGES;
 typedef HV_INPUT_GPA_PAGE_PINNING HV_INPUT_PIN_GPA_PAGE_RANGES;
 typedef PHV_INPUT_GPA_PAGE_PINNING PHV_INPUT_PIN_GPA_PAGE_RANGES;
 
 // HvCallUnpinGpaPageRanges | 0x0113
 
-typedef _HV_INPUT_GPA_PAGE_PINNING _HV_INPUT_UNPIN_GPA_PAGE_RANGES;
+typedef struct _HV_INPUT_GPA_PAGE_PINNING _HV_INPUT_UNPIN_GPA_PAGE_RANGES;
 typedef HV_INPUT_GPA_PAGE_PINNING HV_INPUT_UNPIN_GPA_PAGE_RANGES;
 typedef PHV_INPUT_GPA_PAGE_PINNING PHV_INPUT_UNPIN_GPA_PAGE_RANGES;
 
